@@ -42,8 +42,9 @@ int main(int argc, char const *argv[]) {
 	if (listen(server_fd, 3) < 0) { 
 	        perror("ERROR: Socket listening failed.\n"); 
 		exit(EXIT_FAILURE); 
-	} 
-	if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0) { 
+	}
+	/* Accepting */
+	if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) { 
 		perror("ERROR: Socket acceptance failed.\n"); 
 		exit(EXIT_FAILURE); 
 	} 
@@ -51,5 +52,5 @@ int main(int argc, char const *argv[]) {
 	printf("%s\n",buffer ); 
 	send(new_socket , hello , strlen(hello) , 0 ); 
 	printf("Hello message sent\n"); 
-	return 0; 
+	return EXIT_SUCCESS; 
 } 
