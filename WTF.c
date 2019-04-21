@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <openssl/sha.h>
 #include <limits.h>
+#include "clientfunctions.h"
 
 int main (int argc, char **argv) {
 	if (argc < 2) {
@@ -55,7 +56,9 @@ int main (int argc, char **argv) {
 		/* Ensure file exists in project */
 		char *path = (char *) malloc(strlen(argv[2]) + strlen(argv[3]) + 2);
 		strcpy(path, argv[2]);
-		path[strlen(argv[2])] = '/';
+		if (argv[2][strlen(argv[2]) - 1] != '/') {
+			path[strlen(argv[2])] = '/';
+		}
 		strcat(path, argv[3]); 
 		int fd_file = open(path, O_RDWR, 0644);
 		if (fd_file < 0) {
@@ -66,21 +69,19 @@ int main (int argc, char **argv) {
 		/* Setup .Manifest file path */
 		char *path_mani = (char *) malloc(strlen(argv[2]) + strlen(".Manifest") + 2);
 		strcpy(path_mani, argv[2]);
-		path_mani[strlen(argv[2])] = '/';
+		if (argv[2][strlen(argv[2]) - 1] != '/') {
+			path_mani[strlen(argv[2])] = '/';
+		}	
 		strcat(path_mani, ".Manifest");
-		int fd_manifest = open(path_mani, O_WRONLY | O_APPEND, 0644);
+		int fd_manifest = open(path_mani, O_RDONLY | O_CREAT, 0644);
 		if (fd_manifest < 0) {
-			fd_manifest = open(path_mani, O_CREAT | O_WRONLY | O_APPEND, 0644);
-			if (fd_manifest < 0) {
-				printf("ERROR: Could not open or create .Manifest file.\n");
-				close(fd_manifest);
-				return EXIT_FAILURE;
-			}
-			write(fd_manifest, "0\n", 2);
+			printf("ERROR: Could not open or create .Manifest file.\n");
+			close(fd_manifest);
+			return EXIT_FAILURE;
 		}
 		char *temp = (char *) malloc(sizeof(char) * INT_MAX);
 		int total_length = read(fd_file, temp, INT_MAX);
-		char * input = (char *) malloc(sizeof(char) * (total_length + 1));
+		char *input = (char *) malloc(sizeof(char) * (total_length + 1));
 		strcpy(input, temp);
 		free(temp);
 		unsigned char hash[SHA256_DIGEST_LENGTH];
@@ -90,8 +91,19 @@ int main (int argc, char **argv) {
 		for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
 			sprintf(hashed + (i * 2), "%02x", hash[i]);
 		}
-		printf("%s\n", hashed);
-//		add(fd_manifest, fd_file, hash, 
+		char *temp2 = (char *) malloc(sizeof(char) * INT_MAX);
+		total_length = read(fd_manifest, temp2, INT_MAX);
+		close(fd_manifest);
+		char *mani_input = NULL;
+		if (total_length != 0) {
+			mani_input = (char *) malloc(sizeof(char) * (total_length + 1));
+			strcpy(mani_input, temp2);
+		} else {
+			mani_input = (char *) malloc(sizeof(char) * 3);
+			mani_input = "0\n";
+		}
+		free(temp2);
+		add(path_mani, hashed, path, mani_input);
 		
 	}
 	return EXIT_SUCCESS;

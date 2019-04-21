@@ -1,6 +1,6 @@
 typedef struct node {
-	char *string;
+	char *token;
 	struct node *next;
 } node;
 
-void add(int fd_manifest, char *hashcode, char *path);
+int add(char *path_mani, char *hashcode, char *path, char *input);

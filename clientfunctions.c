@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include<unistd.h>
+#include<fcntl.h>
 #include "clientfunctions.h"
 
 node *head = NULL;
@@ -13,7 +15,6 @@ int insert_list(char *token) {
 		printf("Insufficient memory.\n");
 		return -1;
 	}
-	temp->freq = 1;
 	temp->token = (char *) malloc(strlen(token) + 1);
 	strncpy(temp->token, token, (strlen(token)));
 	/* Case 1: New list */
@@ -30,6 +31,18 @@ int insert_list(char *token) {
 	ptr->next = temp;
 	temp->next = NULL;
 	return 1;
+}
+
+void clear_list(node *head) {
+	node *ptr = head;
+	if (ptr->next == NULL) {
+		free(ptr->token);
+		ptr = NULL;
+	} else {
+		clear_list(ptr->next);
+		free(ptr->token);
+		ptr = NULL;
+	}
 }
 
 /* Separate input into tokens and return how many unique tokens were registerd */
@@ -92,47 +105,31 @@ unsigned int tokenize(char *input) {
 			count += inc;
 		}
 	}
-	/* If final char isn't a delimiter, create a new token out of remaining chars */
-	/*if (token_len > 0) {
-		char * token = (char *)malloc(sizeof(char) * (token_len + 1));
-		if (token == NULL) {
-			printf("Error: Insufficient memory.\n");
-			return -1;
-		}
-		for (j = 0; j < token_len; ++j) {
-			token[j] = input[pos_last_sep + j];
-		}
-		token[token_len] = '\0';
-		int inc = insert_list(token);
-		if (inc == -1) {
-			return -1;
-		}
-		count += inc;
-	} */
 	return count;
 }
 
-void add(int fd_manifest, char *hashcode, char *path, char *input) {
+int add(char *path_mani, char *hashcode, char *path, char *input) {
 	tokenize(input);
 	node *ptr = head;
-	int check = 0;
 	int written = 0;
+	int fd_manifest = open(path_mani, O_WRONLY, 0644);
+	if (fd_manifest < 0) {
+		printf("ERROR: Could not open \".Manifest\" file.\n");
+		return -1;  
+	}
 	while (ptr!= NULL) {
-		if (check == 1 && strcmp(ptr->token, "\t") != 0 && strcmp(ptr->token, path) != 0) {
-			if (strcmp(hashcode, ptr->token) != 0) {
-				ptr->token = (char *) malloc(strlen(hashcode) + 1);
-				strcpy(ptr->token, hashcode);
-			}
-			check = 0;
-		}
-		if (ptr->next != NULL && ptr->next->next != NULL && strcmp(ptr->next->next->token, path) == 0) {
-			check = 1;
+		if (ptr->next != NULL && ptr->next->next != NULL && ptr->next->next->next != NULL && ptr->next->next->next->next != NULL 
+		   && strcmp(ptr->next->next->token, path) == 0 && strcmp(ptr->next->next->next->next->token, hashcode) != 0) {
 			int version = atoi(ptr->token);
 			++version;
 			if (version % 10 == 0) {
 				ptr->token = (char *) malloc(sizeof(version) / sizeof(char) + 1);
 			}
 			sprintf(ptr->token, "%d", version);
+			ptr->next->next->next->next->token = (char *) malloc(strlen(hashcode) + 1);
+			strcpy(ptr->next->next->next->next->token, hashcode);
+		}
+		if (strcmp(ptr->token, path) == 0) {
 			written = 1;
 		}
 		write(fd_manifest, ptr->token, strlen(ptr->token));
@@ -145,4 +142,6 @@ void add(int fd_manifest, char *hashcode, char *path, char *input) {
 		write(fd_manifest, hashcode, strlen(hashcode));
 		write(fd_manifest, "\n", 1);
 	}
+	clear_list(head);
+	return 0;
 }
