@@ -34,7 +34,7 @@ int main (int argc, char **argv) {
 		write(conf_file, "\n", 1);
 		close(conf_file);
 	}
-	if (strcmp("add", argv[1]) == 0) {
+	if (strcmp("add", argv[1]) == 0 || strcmp("remove", argv[1]) == 0) {
 		if (argc < 4) {
 			printf("ERROR: Need project name and file name.\n");
 			return EXIT_FAILURE;
@@ -103,8 +103,16 @@ int main (int argc, char **argv) {
 			mani_input = "0\n";
 		}
 		free(temp2);
-		add(path_mani, hashed, path, mani_input);
-		
+		if (strcmp(argv[1], "add") == 0) {
+			if (add(path_mani, hashed, path, mani_input) == -1) {
+				return EXIT_FAILURE;
+			}
+		} else {
+			
+			if (remover(path_mani, path, mani_input) == -1) {
+				return EXIT_FAILURE;
+			}
+		}
 	}
 	return EXIT_SUCCESS;
 }

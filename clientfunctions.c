@@ -34,14 +34,20 @@ int insert_list(char *token) {
 }
 
 void clear_list(node *head) {
-	node *ptr = head;
-	if (ptr->next == NULL) {
-		free(ptr->token);
-		ptr = NULL;
-	} else {
-		clear_list(ptr->next);
-		free(ptr->token);
-		ptr = NULL;
+	if (head != NULL) {
+		node *ptr = head;
+		if (ptr->next == NULL) {
+			if (ptr != NULL && ptr->token != NULL && strlen(ptr->token) > 0) {
+				free(ptr->token);
+				ptr = NULL;
+			}
+		} else {
+			clear_list(ptr->next);
+			if (ptr != NULL && ptr->token != NULL && strlen(ptr->token) > 0) {
+				free(ptr->token);
+				ptr = NULL;
+			}
+		}
 	}
 }
 
@@ -109,15 +115,20 @@ unsigned int tokenize(char *input) {
 }
 
 int add(char *path_mani, char *hashcode, char *path, char *input) {
-	tokenize(input);
+	if (tokenize(input) == -1) {
+		printf("ERROR: Could not read \".Manifest\" file.\n");
+		clear_list(head);
+		return -1;
+	}
 	node *ptr = head;
 	int written = 0;
 	int fd_manifest = open(path_mani, O_WRONLY, 0644);
 	if (fd_manifest < 0) {
 		printf("ERROR: Could not open \".Manifest\" file.\n");
+		clear_list(head);
 		return -1;  
 	}
-	while (ptr!= NULL) {
+	while (ptr != NULL) {
 		if (ptr->next != NULL && ptr->next->next != NULL && ptr->next->next->next != NULL && ptr->next->next->next->next != NULL 
 		   && strcmp(ptr->next->next->token, path) == 0 && strcmp(ptr->next->next->next->next->token, hashcode) != 0) {
 			int version = atoi(ptr->token);
@@ -142,6 +153,43 @@ int add(char *path_mani, char *hashcode, char *path, char *input) {
 		write(fd_manifest, hashcode, strlen(hashcode));
 		write(fd_manifest, "\n", 1);
 	}
+	close(fd_manifest);
 	clear_list(head);
+	return 0;
+}
+
+int remover(char *path_mani, char *path, char *input) {
+	if (tokenize(input) == -1) {
+		printf("ERROR: Could not read \".Manifest\" file.\n");
+		clear_list(head);
+		return -1;
+	}
+	node *ptr = head;
+	int removed = 0;
+	int fd_manifest = open(path_mani, O_WRONLY | O_TRUNC, 0644);
+	if (fd_manifest < 0) {
+		printf("ERROR: Could not open \".Manifest\" file.\n");
+		clear_list(head);
+		return -1;
+	}
+	while (ptr != NULL) {
+		if (ptr->next != NULL && ptr->next->next != NULL && strcmp(ptr->next->next->token, path) == 0) {
+			ptr->token = "";
+			ptr->next->token = "";
+			ptr->next->next->token = "";
+			ptr->next->next->next->token = "";
+			ptr->next->next->next->next->token = "";
+			ptr->next->next->next->next->next->token = "";
+			removed = 1;
+		}
+		write(fd_manifest, ptr->token, strlen(ptr->token));
+		ptr = ptr->next;
+	}
+	close(fd_manifest);
+	clear_list(head);
+	if (!removed) {
+		printf("ERROR: \"%s\" not in \".Manifest\" file.\n", path);
+		return -1;
+	}
 	return 0;
 }
