@@ -12,193 +12,74 @@
 #include <errno.h>
 #include <time.h>
 
-#define NLOOPS (1000000)
+int main (int argc, char **argv) {
+	if (argc < 2) {
+		fprintf(stderr, "ERROR: Need port number.\n");
+		return(EXIT_FAILURE);
+	} else if (argc > 2) {
+		fprintf(stderr, "ERROR: Too many arguments.\n");
+		return(EXIT_FAILURE);
+	}
+	int port = atoi(argv[1]);
+	int server_socket, client_socket;
+	struct sockaddr_in server_add, client_add;
+	int option = 1;
+	socklen_t sin_size = sizeof(struct sockaddr_in);
+	char *msg = "Hello, socket!";
 
-/* ADDED: A "server context" struct that contains information that needs to be shared
- *  * amongst all the worker threads. It contains a number of connections, along with
- *   * a mutex to protect access to the number of connections.
- *    */
-struct server_context {
-	unsigned int num_connections;
-	pthread_mutex_t lock;
-};
+	/* Initialize socket address */
+	memset(&server_add, 0, sizeof(server_add));
+	server_add.sin_family = AF_INET;
+	server_add.sin_port = htons(port);
+	server_add.sin_addr.s_addr = INADDR_ANY;
 
-struct worker_args {
-	int socket;
-	struct server_ctx *ctx;
-};
+	/* Create socket */
+	server_socket = socket(AF_INET, SOCK_STREAM, 0);
+	if (server_socket < 0) {
+		fprintf(stderr, "ERROR: Could not open socket.\n");
+		exit(EXIT_FAILURE);
+	}
 
-void *handler(void *args);
+	/* Make address resuable */
+	if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0) {
+		fprintf(stderr, "ERROR: Socket setsockopt() failed.\n");
+		close(server_socket);
+		exit(EXIT_FAILURE);
+	}
 
-int main(int argc, char **argv) {
-    /* ADDED: Malloc the server context and initialize its values,
- *      * which includes initializing the mutex.*/
-	struct server_context *ctx = calloc(1, sizeof(struct server_ctx));
-	ctx->num_connections = 0;
-	pthread_mutex_init(&ctx->lock, NULL);
+	/* Bind socket to address*/
+	if (bind(server_socket, (struct sockaddr *) &server_add, sizeof(server_add)) < 0) {
+		fprintf(stderr, "ERROR: Socket bind() failed.\n");
+		close(server_socket);
+		exit(EXIT_FAILURE);
+	}
 
-	sigset_t new;
-	sigemptyset (&new);
-    sigaddset(&new, SIGPIPE);
-    if (pthread_sigmask(SIG_BLOCK, &new, NULL) != 0) 
-    {
-        perror("Unable to mask SIGPIPE");
-        exit(-1);
-    }
+	/* Listen */
+	if (listen(server_socket, 20) < 0) {
+		fprintf(stderr, "ERROR: Socket listen() failed.\n");
+		close(server_socket);
+		exit(EXIT_FAILURE);
+	}
+	printf("Waiting for a connection...\n");
 
-    int server_socket;
-    int client_socket;
-    pthread_t worker_thread;
-    struct addrinfo hints, *res, *p;
-    struct sockaddr_storage *client_addr;
-    socklen_t sin_size = sizeof(struct sockaddr_storage);
-    struct worker_args *wa;
-    int yes = 1;
+	/* Accept */
+	if ((client_socket = accept(server_socket, (struct sockaddr *) &client_add, &sin_size)) < 0) {
+		fprintf(stderr, "ERROR: Socket accept() failed.\n");
+		close(server_socket);
+		exit(EXIT_FAILURE);
+	}
+	
+	/*Send a message */
+	if (send(client_socket, msg, strlen(msg), 0) <= 0) {
+		fprintf(stderr, "ERROR: Socket send() failed.\n");
+		close(server_socket);
+		close(client_socket);
+		exit(EXIT_FAILURE);
+	}
 
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;
-
-    if (getaddrinfo(NULL, "23300", &hints, &res) != 0)
-    {
-        perror("getaddrinfo() failed");
-        pthread_exit(NULL);
-    }
-
-    for(p = res;p != NULL; p = p->ai_next)
-    {
-        if ((server_socket = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
-        {
-            perror("Could not open socket");
-            continue;
-        }
-
-        if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
-        {
-            perror("Socket setsockopt() failed");
-            close(server_socket);
-            continue;
-        }
-
-        if (bind(server_socket, p->ai_addr, p->ai_addrlen) == -1)
-        {
-            perror("Socket bind() failed");
-            close(server_socket);
-            continue;
-        }
-
-        if (listen(server_socket, 5) == -1)
-        {
-            perror("Socket listen() failed");
-            close(server_socket);
-            continue;
-        }
-
-        break;
-    }
-
-    freeaddrinfo(res);
-
-    if (p == NULL)
-    {
-        fprintf(stderr, "Could not find a socket to bind to.\n");
-        pthread_exit(NULL);
-    }
-
-    while (1)
-    {
-        client_addr = calloc(1, sin_size);
-        if ((client_socket = accept(server_socket, (struct sockaddr *) client_addr, &sin_size)) == -1)
-        {
-            free(client_addr);
-            perror("Could not accept() connection");
-            continue;
-        }
-
-        wa = calloc(1, sizeof(struct worker_args));
-        wa->socket = client_socket;
-        wa->ctx = ctx;
-
-        if (pthread_create(&worker_thread, NULL, service_single_client, wa) != 0)
-        {
-            perror("Could not create a worker thread");
-            free(client_addr);
-            free(wa);
-            close(client_socket);
-            close(server_socket);
-            return EXIT_FAILURE;
-        }
-    }
-
-    /* ADDED: Destroy the lock */
-    pthread_mutex_destroy(&ctx->lock);
-    free(ctx);
-
-    return EXIT_SUCCESS;
+	close(client_socket);
+	printf("Message sent.\n");
+	close(server_socket);
+	return EXIT_SUCCESS;
 }
 
-
-void *service_single_client(void *args) {
-    struct worker_args *wa;
-    struct server_ctx *ctx;
-    int socket, nbytes, i;
-    char buffer[100];
-
-    wa = (struct worker_args*) args;
-    socket = wa->socket;
-    ctx = wa->ctx;
-
-    pthread_detach(pthread_self());
-
-    /* ADDED: Protect access to num_connections with the lock */
-    #ifdef MUTEX
-    pthread_mutex_lock (&ctx->lock);
-    #endif
-
-    /* The following two loops will result in num_connections
- *        being ultimately incremented by just one, but we do
- *               this with these loops to increase the chances of a
- *                      race condition happening */
-    for(i=0; i< NLOOPS; i++)
-        ctx->num_connections++;
-    for(i=0; i< NLOOPS-1; i++)
-        ctx->num_connections--;
-    fprintf(stderr, "+ Number of connections is %d\n", ctx->num_connections);
-
-    /* ADDED: Unlock the lock when we're done with it. */
-    #ifdef MUTEX
-    pthread_mutex_unlock (&ctx->lock);
-    #endif
-
-    while(1)
-    {
-        nbytes = recv(socket, buffer, sizeof(buffer), 0);
-        if (nbytes == 0)
-            break;
-        else if (nbytes == -1)
-        {
-            perror("Socket recv() failed");
-            close(socket);
-            pthread_exit(NULL);
-        }
-        /* Ignore anything that's actually recv'd. We just want
- *            to keep the connection open until the client disconnects */
-    }
-
-    /* ADDED: Same as the above loops, but decrementing num_connections by one */
-    #ifdef MUTEX
-    pthread_mutex_lock (&ctx->lock);
-    #endif
-    for(i=0; i< NLOOPS; i++)
-        ctx->num_connections--;
-    for(i=0; i< NLOOPS-1; i++)
-        ctx->num_connections++;
-    fprintf(stderr, "- Number of connections is %d\n", ctx->num_connections);
-    #ifdef MUTEX
-    pthread_mutex_unlock (&ctx->lock);
-    #endif
-
-    close(socket);
-    pthread_exit(NULL);
-}
