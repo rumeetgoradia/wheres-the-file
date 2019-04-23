@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
 	int received;
 	int option;
 	/* This will be host and port in .configure */
-	while ((option = getopt(argc, argv, "h:p:")) != -1) {
+/*	while ((option = getopt(argc, argv, "h:p:")) != -1) {
 		switch (option) {
 			case 'h':
 				host = strdup(optarg);
@@ -32,16 +32,16 @@ int main(int argc, char **argv) {
 	if (host == NULL || port == NULL) {
 		fprintf(stderr, "USAGE: client -h HOST -p PORT\n");
 		exit(1);
-	}
+	} */
 	/* Setup hints */
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	if (getaddrinfo(host, port, &hints, &res) != 0) {
+	if (getaddrinfo("127.0.0.1", "5050", &hints, &res) != 0) {
 		fprintf(stderr, "ERROR: getaddrinfo() failed.\n");
 		exit(EXIT_FAILURE);
 	}
-	for (p = res; p != NULL, p = p->ai_next) {
+	for (p = res; p != NULL; p = p->ai_next) {
 		if ((client_socket = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0) {
 			fprintf(stderr, "ERROR: Could not open socket.\n");
 			continue;
