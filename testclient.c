@@ -55,17 +55,20 @@ int main(int argc, char **argv) {
 	}
 	freeaddrinfo(res);
 	received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-	if (received == 0) {
-		fprintf(stderr, "ERROR: Server closed the connection.\n");
-		close(client_socket);
-		exit(EXIT_FAILURE);
-	} else if (received < 0) {
-		fprintf(stderr, "ERROR: Socket recv() failed.\n");
-		close(client_socket);
-		exit(EXIT_FAILURE);
-	} else {
-		buffer[received] = '\0';
-		printf("Received:\n%s\n", buffer);
+	while(1) {
+		if (received == 0) {
+			fprintf(stderr, "ERROR: Server closed the connection.\n");
+			close(client_socket);
+			exit(EXIT_FAILURE);
+		} else if (received < 0) {
+			fprintf(stderr, "ERROR: Socket recv() failed.\n");
+			close(client_socket);
+			exit(EXIT_FAILURE);
+		} else {
+			buffer[received] = '\0';
+			printf("Received:\n%s\n", buffer);
+			received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+		}
 	}
 	close(client_socket);
 	return EXIT_SUCCESS;
