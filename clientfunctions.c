@@ -159,9 +159,7 @@ unsigned int tokenize(char *path, char *input, int *version, int flag, char *has
 int add(int fd_manifest, char *hashcode, char *path, char *input) {
 	int *version = (int *) malloc(sizeof(int));
 	*version = 0;
-	char temp[strlen(input)];
-	strcpy(temp, input);
-	int move = tokenize(path, temp, version, 1, hashcode);
+	int move = tokenize(path, input, version, 1, hashcode);
 	if (move == 0) {
 		fprintf(stderr, "ERROR: Could not read \".Manifest\" file.\n");
 		return -1;
@@ -185,6 +183,24 @@ int add(int fd_manifest, char *hashcode, char *path, char *input) {
 	return 0;
 }
 
+int remover(int fd_manifest, char *path, char *input) {
+	int move = tokenize(path, input, NULL, 0, NULL);
+	if (move == strlen(input)) {
+		fprintf(stderr, "ERROR: File \"%s\" not in \".Manifest\" file.\n", path);
+		return -1;
+	}
+	char buff[move];
+	read(fd_manifest, buff, move);
+	while(1) {
+		write(fd_manifest, "", 1);
+		read(fd_manifest, buff, 1);
+		if (buff[0] == '\n') {
+			write(fd_manifest, "", 1);
+			break;
+		}
+	}
+	return 0;
+}
 /*int remover(char *path_mani, char *path, char *input) {
 	if (tokenize(input) == -1) {
 		printf("ERROR: Could not read \".Manifest\" file.\n");
