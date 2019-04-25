@@ -183,34 +183,6 @@ int add(int fd_manifest, char *hashcode, char *path, char *input) {
 	write(fd_manifest, "\n", 1);
 	close(fd_manifest);
 	return 0;
-// 	while (ptr != NULL) {
-// 		if (ptr->next != NULL && ptr->next->next != NULL && ptr->next->next->next != NULL && ptr->next->next->next->next != NULL 
-// 		   && strcmp(ptr->next->next->token, path) == 0 && strcmp(ptr->next->next->next->next->token, hashcode) != 0) {
-// 			int version = atoi(ptr->token);
-// 			++version;
-// 			if (version % 10 == 0) {
-// 				ptr->token = (char *) malloc(sizeof(version) / sizeof(char) + 1);
-// 			}
-// 			sprintf(ptr->token, "%d", version);
-// 			ptr->next->next->next->next->token = (char *) malloc(strlen(hashcode) + 1);
-// 			strcpy(ptr->next->next->next->next->token, hashcode);
-// 		}
-// 		if (strcmp(ptr->token, path) == 0) {
-// 			written = 1;
-// 		}
-// 		write(fd_manifest, ptr->token, strlen(ptr->token));
-// 		ptr = ptr->next;
-// 	}
-// 	if (!written) {
-// 		write(fd_manifest, "0\t", 2);
-// 		write(fd_manifest, path, strlen(path));
-// 		write(fd_manifest, "\t", 1);
-// 		write(fd_manifest, hashcode, strlen(hashcode));
-// 		write(fd_manifest, "\n", 1);
-// 	}
-// 	close(fd_manifest);
-// 	clear_list(head);
-// 	return 0;
 }
 
 /*int remover(char *path_mani, char *path, char *input) {
