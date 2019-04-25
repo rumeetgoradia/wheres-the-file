@@ -112,9 +112,11 @@ int main (int argc, char **argv) {
 			}
 			close(fd_manifest);
 		} else {	
-			/*if (remover(path_mani, path, mani_input) == -1) {
+			if (remover(fd_manifest, path, mani_input) == -1) {
+				close(fd_manifest);
 				return EXIT_FAILURE;
-			}*/
+			}
+			close(fd_manifest);
 		}
 	}
 	return EXIT_SUCCESS;

@@ -121,17 +121,28 @@ unsigned int tokenize(char *path, char *input, int *version, int flag, char *has
 	}
 	char whole_string[strlen(input)];
 	strcpy(whole_string, input);
+	printf("whole_string: %s\n", whole_string);
 	char *token;
 	unsigned int byte_count = 0;
 	unsigned int prev_bytes = 0;
 	unsigned int check_bytes = 0;
 	short check = 0;
 	token = strtok(whole_string, "\n\t");
+	printf("first token: %s\n", token);
 	prev_bytes = strlen(token) + 1;
 	byte_count += prev_bytes;
-	*version = 0;
+	if (version != NULL) {
+		*version = 0;
+	}
 	while (token != NULL) {
-		*version = atoi(token);
+		printf("in while loop\n");
+		if (version != NULL) {
+			if (token[0] == 'R') {
+				*version = 0;	
+			} else {
+				*version = atoi(token);
+			}
+		}
 		token = strtok(NULL, "\n\t");
 		if (token == NULL) {
 			break;
@@ -152,7 +163,9 @@ unsigned int tokenize(char *path, char *input, int *version, int flag, char *has
 		prev_bytes = strlen(token) + 1;
 		byte_count += prev_bytes;
 	}
-	*version = -1;
+	if (version != NULL) {
+		*version = -1;
+	}
 	return strlen(input);
 }
 
@@ -184,21 +197,16 @@ int add(int fd_manifest, char *hashcode, char *path, char *input) {
 }
 
 int remover(int fd_manifest, char *path, char *input) {
-	int move = tokenize(path, input, NULL, 0, NULL);
+	int *version = (int *) malloc(sizeof(int));
+	*version = 0;
+	int move = tokenize(path, input, version, 0, NULL);
 	if (move == strlen(input)) {
 		fprintf(stderr, "ERROR: File \"%s\" not in \".Manifest\" file.\n", path);
 		return -1;
 	}
 	char buff[move];
 	read(fd_manifest, buff, move);
-	while(1) {
-		write(fd_manifest, "", 1);
-		read(fd_manifest, buff, 1);
-		if (buff[0] == '\n') {
-			write(fd_manifest, "", 1);
-			break;
-		}
-	}
+	write(fd_manifest, "R", 1);
 	return 0;
 }
 /*int remover(char *path_mani, char *path, char *input) {
