@@ -73,7 +73,7 @@ int main (int argc, char **argv) {
 			path_mani[strlen(argv[2])] = '/';
 		}	
 		strcat(path_mani, ".Manifest");
-		int fd_manifest = open(path_mani, O_RDONLY | O_CREAT, 0644);
+		int fd_manifest = open(path_mani, O_RDWR | O_CREAT, 0644);
 		if (fd_manifest < 0) {
 			printf("ERROR: Could not open or create .Manifest file.\n");
 			close(fd_manifest);
@@ -86,6 +86,7 @@ int main (int argc, char **argv) {
 		free(temp);
 		unsigned char hash[SHA256_DIGEST_LENGTH];
 		SHA256(input, strlen(input), hash);
+		free(input);
 		char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
 		int i = 0;
 		for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
@@ -93,7 +94,7 @@ int main (int argc, char **argv) {
 		}
 		char *temp2 = (char *) malloc(sizeof(char) * INT_MAX);
 		total_length = read(fd_manifest, temp2, INT_MAX);
-		close(fd_manifest);
+		lseek(fd_manifest,0,0);
 		char *mani_input = NULL;
 		if (total_length != 0) {
 			mani_input = (char *) malloc(sizeof(char) * (total_length + 1));
@@ -101,17 +102,19 @@ int main (int argc, char **argv) {
 		} else {
 			mani_input = (char *) malloc(sizeof(char) * 3);
 			mani_input = "0\n";
+			write(fd_manifest, "0\n", 2);
 		}
 		free(temp2);
 		if (strcmp(argv[1], "add") == 0) {
-			if (add(path_mani, hashed, path, mani_input) == -1) {
+			if (add(fd_manifest, hashed, path, mani_input) == -1) {
+				close(fd_manifest);
 				return EXIT_FAILURE;
 			}
-		} else {
-			
-			if (remover(path_mani, path, mani_input) == -1) {
+			close(fd_manifest);
+		} else {	
+			/*if (remover(path_mani, path, mani_input) == -1) {
 				return EXIT_FAILURE;
-			}
+			}*/
 		}
 	}
 	return EXIT_SUCCESS;

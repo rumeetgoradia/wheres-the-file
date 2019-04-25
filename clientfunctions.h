@@ -3,5 +3,5 @@ typedef struct node {
 	struct node *next;
 } node;
 
-int add(char *path_mani, char *hashcode, char *path, char *input);
+int add(int fd_manifest, char *hashcode, char *path, char *input);
 int remover(char *path_mani, char *path, char *input);

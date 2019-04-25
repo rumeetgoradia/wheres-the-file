@@ -1,11 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include<unistd.h>
-#include<fcntl.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <math.h>
 #include "clientfunctions.h"
 
-node *head = NULL;
+/* node *head = NULL;
 
 int insert_list(char *token) {
 	node *temp;
@@ -17,13 +18,13 @@ int insert_list(char *token) {
 	}
 	temp->token = (char *) malloc(strlen(token) + 1);
 	strncpy(temp->token, token, (strlen(token)));
-	/* Case 1: New list */
+	 Case 1: New list 
 	if (head == NULL) {
 		head = temp;
 		temp->next = NULL;
 		return 1;
 	}
-	/* Case 2: Only one node */
+ Case 2: Only one node 
 	ptr = head;
 	while (ptr->next != NULL) {
 		ptr = ptr->next;
@@ -49,7 +50,7 @@ void clear_list(node *head) {
 			}
 		}
 	}
-}
+} */
 
 // /* Separate input into tokens and return how many unique tokens were registerd */
 // unsigned int tokenize(char *input) {
@@ -114,54 +115,65 @@ void clear_list(node *head) {
 // 	return count;
 // }
 
-unsigned int tokenize(char *path, char *input, int *version) {
+unsigned int tokenize(char *path, char *input, int *version, int flag, char *hash) {
 	if (input == NULL) {
 		return 0;	
 	}
-	char delims[3] = "\n\t";
+	char whole_string[strlen(input)];
+	strcpy(whole_string, input);
 	char *token;
 	unsigned int byte_count = 0;
 	unsigned int prev_bytes = 0;
-	token = strtok(input, delims);
+	unsigned int check_bytes = 0;
+	short check = 0;
+	token = strtok(whole_string, "\n\t");
 	prev_bytes = strlen(token) + 1;
 	byte_count += prev_bytes;
 	*version = 0;
 	while (token != NULL) {
 		*version = atoi(token);
-		token = strtok(NULL, delims);
-		if (strcmp(token, path) == 0) {
-			return byte_count - prev_bytes;
+		token = strtok(NULL, "\n\t");
+		if (token == NULL) {
+			break;
 		}
+		if (check == 1) {
+			if (strcmp(token, hash) == 0) {
+				return -1;
+			} else {
+				return byte_count - prev_bytes - check_bytes;
+			}
+		}
+		if (strcmp(token, path) == 0 && !flag) {
+			return byte_count - prev_bytes;
+		} else if (strcmp(token, path) == 0) {
+			check = 1;
+		}
+		check_bytes = prev_bytes;
 		prev_bytes = strlen(token) + 1;
 		byte_count += prev_bytes;
 	}
-	*version = 0;
+	*version = -1;
 	return strlen(input);
 }
 
-int add(char *path_mani, char *hashcode, char *path, char *input) {
-// 	if (tokenize(input) == -1) {
-// 		printf("ERROR: Could not read \".Manifest\" file.\n");
-// 		clear_list(head);
-// 		return -1;
-// 	}
-// 	node *ptr = head;
-// 	int written = 0;
-	int fd_manifest = open(path_mani, O_RDWR, 0644);
-	if (fd_manifest < 0) {
-		fprintf(stderr, "ERROR: Could not open \".Manifest\" file.\n");
-// 		clear_list(head);
-		return -1;  
-	}
-	int *version;
-	int move = tokenize(path, input, version);
+int add(int fd_manifest, char *hashcode, char *path, char *input) {
+	int *version = (int *) malloc(sizeof(int));
+	*version = 0;
+	char temp[strlen(input)];
+	strcpy(temp, input);
+	int move = tokenize(path, temp, version, 1, hashcode);
 	if (move == 0) {
-		fprintf(stderr, "ERROR: Could not read	\".Manifest\" file.\n");
+		fprintf(stderr, "ERROR: Could not read \".Manifest\" file.\n");
 		return -1;
 	}
-	lseek(fd_manifest, move, SEEK_SET);
+	if (move == -1) {
+		fprintf(stderr, "ERROR: File already up-to-date in local \".Manifest\" file.\n");
+		return -1;
+	}
+	char buff[move];
+	read(fd_manifest, buff, move);
 	int update = *version + 1;
-	char *new_version = (char *) malloc((int) log(update) + 1);
+	char *new_version = (char *) malloc(sizeof(update) / (sizeof(char) + 1));
 	sprintf(new_version, "%d", update);
 	write(fd_manifest, new_version, strlen(new_version));
 	write(fd_manifest, "\t", 1);
@@ -201,7 +213,7 @@ int add(char *path_mani, char *hashcode, char *path, char *input) {
 // 	return 0;
 }
 
-int remover(char *path_mani, char *path, char *input) {
+/*int remover(char *path_mani, char *path, char *input) {
 	if (tokenize(input) == -1) {
 		printf("ERROR: Could not read \".Manifest\" file.\n");
 		clear_list(head);
@@ -235,4 +247,4 @@ int remover(char *path_mani, char *path, char *input) {
 		return -1;
 	}
 	return 0;
-}
+} */

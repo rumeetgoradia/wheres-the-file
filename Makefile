@@ -1,5 +1,5 @@
 all: WTF.c clientfunctions.o WTFserver.c
-	gcc -fsanitize=address -o WTF WTF.c clientfunctions.o -lssl -lcrypto
+	gcc -fsanitize=address -o WTF WTF.c clientfunctions.o -lssl -lcrypto -lm
 	gcc -fsanitize=address -o WTFserver WTFserver.c -lpthread -DMUTEX
 
 test: testclient.c WTFserver.c
