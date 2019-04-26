@@ -115,33 +115,26 @@ void clear_list(node *head) {
 // 	return count;
 // }
 
-unsigned int tokenize(char *path, char *input, int *version, int flag, char *hash) {
+unsigned int tokenize(char *path, char *input, int *version, char *hash) {
 	if (input == NULL) {
 		return 0;	
 	}
 	char whole_string[strlen(input)];
 	strcpy(whole_string, input);
-	printf("whole_string: %s\n", whole_string);
 	char *token;
 	unsigned int byte_count = 0;
 	unsigned int prev_bytes = 0;
 	unsigned int check_bytes = 0;
 	short check = 0;
 	token = strtok(whole_string, "\n\t");
-	printf("first token: %s\n", token);
 	prev_bytes = strlen(token) + 1;
 	byte_count += prev_bytes;
 	if (version != NULL) {
 		*version = 0;
 	}
 	while (token != NULL) {
-		printf("in while loop\n");
 		if (version != NULL) {
-			if (token[0] == 'R') {
-				*version = 0;	
-			} else {
-				*version = atoi(token);
-			}
+			*version = atoi(token);
 		}
 		token = strtok(NULL, "\n\t");
 		if (token == NULL) {
@@ -154,9 +147,7 @@ unsigned int tokenize(char *path, char *input, int *version, int flag, char *has
 				return byte_count - prev_bytes - check_bytes;
 			}
 		}
-		if (strcmp(token, path) == 0 && !flag) {
-			return byte_count - prev_bytes;
-		} else if (strcmp(token, path) == 0) {
+		if (strcmp(token, path) == 0) {
 			check = 1;
 		}
 		check_bytes = prev_bytes;
@@ -167,12 +158,13 @@ unsigned int tokenize(char *path, char *input, int *version, int flag, char *has
 		*version = -1;
 	}
 	return strlen(input);
+	
 }
 
 int add(int fd_manifest, char *hashcode, char *path, char *input) {
 	int *version = (int *) malloc(sizeof(int));
 	*version = 0;
-	int move = tokenize(path, input, version, 1, hashcode);
+	int move = tokenize(path, input, version, hashcode);
 	if (move == 0) {
 		fprintf(stderr, "ERROR: Could not read \".Manifest\" file.\n");
 		return -1;
@@ -199,14 +191,26 @@ int add(int fd_manifest, char *hashcode, char *path, char *input) {
 int remover(int fd_manifest, char *path, char *input) {
 	int *version = (int *) malloc(sizeof(int));
 	*version = 0;
-	int move = tokenize(path, input, version, 0, NULL);
+	char dashes[64];
+	memset(dashes, '-', sizeof(dashes));
+	int move = tokenize(path, input, version, dashes);
 	if (move == strlen(input)) {
 		fprintf(stderr, "ERROR: File \"%s\" not in \".Manifest\" file.\n", path);
 		return -1;
 	}
-	char buff[move];
-	read(fd_manifest, buff, move);
-	write(fd_manifest, "R", 1);
+	if (move == -1) {
+		fprintf(stderr, "ERROR: File \"%s\" already removed from \".Manifest\" file.\n", path);
+		return -1;
+	}
+	int total_char = 2 + strlen(path);
+	if (*version == 0) {
+		++total_char;
+	} else {
+		total_char += (int) log(*version);
+	}
+	char buff[move + total_char];
+	read(fd_manifest, buff, move + total_char);
+	write(fd_manifest, dashes, strlen(dashes));
 	return 0;
 }
 /*int remover(char *path_mani, char *path, char *input) {
