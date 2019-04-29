@@ -3,6 +3,10 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -33,8 +37,7 @@ int main (int argc, char **argv) {
 		write(conf_file, argv[3], strlen(argv[3]));
 		write(conf_file, "\n", 1);
 		close(conf_file);
-	}
-	if (strcmp("add", argv[1]) == 0 || strcmp("remove", argv[1]) == 0) {
+	} else if (strcmp("add", argv[1]) == 0 || strcmp("remove", argv[1]) == 0) {
 		if (argc < 4) {
 			printf("ERROR: Need project name and file name.\n");
 			return EXIT_FAILURE;
@@ -118,6 +121,83 @@ int main (int argc, char **argv) {
 			}
 			close(fd_manifest);
 		}
+	} else {
+		int client_socket;
+		struct addrinfo hints, *res, *ptr;
+		char *token;
+		int fd_conf = open("./.configure", O_RDONLY);
+		if (fd_conf < 0) {
+			fprintf(stderr, "ERROR: Could not open \".configure\" file.\n");
+			return EXIT_FAILURE;
+		}
+		char conf_buff[50];
+		read(fd_conf, conf_buff, 50);
+		token = strtok(conf_buff, "\n");
+		char *host = (char *) malloc(strlen(token) + 1);
+		strcpy(host, token);
+		token = strtok(NULL, "\n");
+		char *port = (char *) malloc(strlen(token) + 1);
+		strcpy(port, token);
+		char recv_buff[100 + 1];
+		int received, sent;
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_socktype = SOCK_STREAM;
+		if (getaddrinfo(host, port, &hints, &res) != 0) {
+			fprintf(stderr, "ERROR: getaddrinfo() failed.\n");
+			return EXIT_FAILURE;
+		}
+		ptr = res;
+		printf("Waiting for server...\n");
+		while(1) {
+			if (ptr == NULL) {
+				ptr = res;
+			}
+			if ((client_socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol)) < 0) {
+				fprintf(stderr, "ERROR: Could not open client-side socket.\n");
+				ptr = ptr->ai_next;
+				sleep(3);
+				continue;
+			}
+			if (connect(client_socket, ptr->ai_addr, ptr->ai_addrlen) < 0) {
+				close(client_socket);	
+				ptr = ptr->ai_next;
+				sleep(3);
+				continue;
+			}
+			break;
+		}
+		freeaddrinfo(res);
+		if (strcmp(argv[1], "create") == 0) {
+			if (argc < 3) {
+				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
+				return EXIT_FAILURE;
+			}
+			if (argc > 3) {
+				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name.\n");
+				return EXIT_FAILURE;
+			}
+			char sending[strlen(argv[2] + 3)];
+			snprintf(sending, strlen(argv[2]) + 3, "c:%s", argv[2]);
+			printf("send: %s\n", sending);
+			sent = send(client_socket, sending, strlen(sending), 0);
+		}
+/*		while(1) {
+			if (received == 0) {
+				fprintf(stderr, "ERROR: Server closed the connection.\n");
+				close(client_socket);
+				return EXIT_FAILURE;
+			} else if (received < 0) {
+				fprintf(stderr, "ERROR: Client-side socket recv() failed.\n");
+				close(client_socket);
+				return EXIT_FAILURE;
+			} else {
+				recv_buff[received] = '\0';
+				printf("received: %s\n", recv_buff);
+				received = recv(client_socket, recv_buff, sizeof(recv_buff) - 1, 0);
+			}
+		} */
+		close(client_socket);
 	}
 	return EXIT_SUCCESS;
 }

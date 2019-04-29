@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -11,6 +12,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <time.h>
+#include <fcntl.h>
 
 struct server_context {
 	unsigned int num_connections;
@@ -56,7 +58,6 @@ int main (int argc, char **argv) {
 	int option = 1;
 	socklen_t sin_size = sizeof(struct sockaddr_storage);
 	struct work_args *wa;
-	char *msg = "Hello, socket!";
 
 	/* Initialize hints for getaddrinfo */
 	memset(&hints, 0, sizeof(hints));
@@ -107,6 +108,12 @@ int main (int argc, char **argv) {
 		fprintf(stderr, "ERROR: Could not bind to any socket.\n");
 		pthread_exit(NULL);
 	}
+	
+	/* Create server directory if doesn't already exist */
+	struct stat st = {0};
+	if (stat("./.server_directory", &st) == -1) {
+		mkdir("./.server_directory", 0744);
+	}
 
 	while(1) {
 		client_add = malloc(sin_size);
@@ -139,8 +146,9 @@ int main (int argc, char **argv) {
 void *handler(void *args) {
 	struct work_args *wa;
 	struct server_context *cntx;
-	int socket, sent, i;
-	char sending[100];
+	int socket, sent, received, i;
+	char *sending = (char *) malloc(1024);
+	char recv_buffer[512];
 
 	wa = (struct work_args *) args;
 	socket = wa->socket;
@@ -149,8 +157,48 @@ void *handler(void *args) {
 	pthread_detach(pthread_self());
 
 	printf("Socket %d connected.\n", socket);
+	
+	received = recv(socket, recv_buffer, sizeof(recv_buffer) - 1, 0);
+	recv_buffer[received] = '\0';
+	if (received <= 0) {
+		fprintf(stderr, "ERROR: Server-side recv() failed.\n");
+		pthread_exit(NULL);
+	}
+	char *token;
+	token = strtok(recv_buffer, ":");
+	if (token[0] == 'c') {
+		token = strtok(NULL, ":");
+		char *new_proj_path = (char *) malloc(strlen(token) + 21);
+		if (token[strlen(token) - 1] != '/') {
+			snprintf(new_proj_path, sizeof(new_proj_path), "./.server_directory/%s/", token);
+		} else {
+			snprintf(new_proj_path, sizeof(new_proj_path), "./.server_directory/%s", token);
+		}
+		struct stat st = {0};
+		if (stat(new_proj_path, &st) == -1) {
+			mkdir(new_proj_path, 0744);
+			char *new_mani_path = (char *) malloc(strlen(new_proj_path) + 10);
+			snprintf(new_mani_path, sizeof(new_mani_path), "%s/.Manifest", new_proj_path);
+			int fd_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0744);
+			write(fd_mani, "0\n", 2);
+			close(fd_mani);
+			free(new_mani_path);
+			free(new_proj_path);
+			sending = "c:.Manifest:0\n";
+			sent = send(socket, sending, strlen(sending), 0);
+			pthread_exit(NULL);
+		} else {
+			sending[0] = 'x';
+			sent = send(socket, sending, 1, 0);
+			free(new_proj_path);
+			pthread_exit(NULL);
+		}
+	}
+	
+//	printf("recv: %s\n", recv_buffer);
+	
 
-	while(1) {
+/*	while(1) {
 		sprintf(sending, "Hello socket! It is %d.\n", (int) time(NULL));
 
 		sent = send(socket, sending, strlen(sending), 0);
@@ -166,7 +214,7 @@ void *handler(void *args) {
 		}
 		sleep(5);
 	}
-	
+*/	
 	pthread_exit(NULL);
 }
 
