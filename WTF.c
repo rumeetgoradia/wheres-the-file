@@ -12,7 +12,7 @@
 #include <dirent.h>
 #include <openssl/sha.h>
 #include <limits.h>
-#include "clientfunctions.h"
+#include "helperfunctions.h"
 
 int main (int argc, char **argv) {
 	if (argc < 2) {
@@ -138,7 +138,6 @@ int main (int argc, char **argv) {
 		token = strtok(NULL, "\n");
 		char *port = (char *) malloc(strlen(token) + 1);
 		strcpy(port, token);
-		char recv_buff[100 + 1];
 		int received, sent;	
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = AF_UNSPEC;
@@ -177,9 +176,9 @@ int main (int argc, char **argv) {
 				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name.\n");
 				return EXIT_FAILURE;
 			}
-			char sending[strlen(argv[2] + 3)];
-			snprintf(sending, strlen(argv[2]) + 3, "c:%s", argv[2]);
-			printf("send: %s\n", sending);
+			char sending[strlen(argv[2]) + 3];
+			char recv_buff[15];
+			snprintf(sending, strlen(argv[2]) + 3, "c:%s", argv[2]);	
 			sent = send(client_socket, sending, strlen(sending), 0);
 			received = recv(client_socket, recv_buff, sizeof(recv_buff) - 1, 0);
 			recv_buff[received] = '\0';
@@ -197,14 +196,28 @@ int main (int argc, char **argv) {
 					write(fd_mani, "0\n", 2);
 					close(fd_mani);
 					free(new_mani_path);
-					printf("Project \"%s\" initialized successfully!\n");
+					printf("Project \"%s\" initialized successfully!\n", argv[2]);
 				} else {
 					fprintf(stderr, "ERROR: Project \"%s\" created on server, but directory of same name already exists on client-side.\n", argv[2]);
 					return EXIT_FAILURE;
 				}
 			}
-		} else if (strcmp(argv[2], "destroy") == 0) {
-				
+		} else if (strcmp(argv[1], "destroy") == 0) {
+			char sending[strlen(argv[2]) + 3];
+			snprintf(sending, strlen(argv[2]) + 3, "d:%s", argv[2]);
+			sent = send(client_socket, sending, strlen(sending), 0);
+			char recv_buff[2];
+			received = recv(client_socket, recv_buff, sizeof(recv_buff) - 1, 0);
+			recv_buff[received] = '\0';
+			if (recv_buff[0] == 'g') {
+				printf("Project \"%s\" deleted on server successfully!\n", argv[2]);
+			} else if (recv_buff[0] == 'b') {
+				fprintf(stderr, "ERROR: Failed to delete project \"%s\" on server.\n", argv[2]);
+				return EXIT_FAILURE;
+			} else {
+				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
+				return EXIT_FAILURE;
+			}
 		}
 /*		while(1) {
 			if (received == 0) {

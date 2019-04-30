@@ -13,6 +13,8 @@
 #include <errno.h>
 #include <time.h>
 #include <fcntl.h>
+#include <dirent.h>
+#include "helperfunctions.h"
 
 struct server_context {
 	unsigned int num_connections;
@@ -50,6 +52,10 @@ int main (int argc, char **argv) {
 	
 	/* Get port number */
 	int port = atoi(argv[1]);
+	if (port < 1024) {
+		fprintf(stderr, "ERROR: Invalid port number.\n");
+		return EXIT_FAILURE;
+	}
 	
 	int server_socket, client_socket;
 	pthread_t thread;
@@ -101,9 +107,7 @@ int main (int argc, char **argv) {
 		
 		break;
 	}
-	
 	freeaddrinfo(res);
-
 	if (p == NULL) {
 		fprintf(stderr, "ERROR: Could not bind to any socket.\n");
 		pthread_exit(NULL);
@@ -147,8 +151,7 @@ int main (int argc, char **argv) {
 void *handler(void *args) {
 	struct work_args *wa;
 	struct server_context *cntx;
-	int socket, sent, received, i;
-	char *sending = (char *) malloc(1024);
+	int socket, sent, received, i;	
 	char recv_buffer[512];
 
 	wa = (struct work_args *) args;
@@ -178,7 +181,7 @@ void *handler(void *args) {
 		} else {
 			snprintf(new_proj_path, strlen(token) + 22, "./.server_directory/%s", token);
 		}
-
+		char sending[2];
 		struct stat st = {0};
 		if (stat(new_proj_path, &st) == -1) {
 			mkdir(new_proj_path, 0744);
@@ -189,14 +192,40 @@ void *handler(void *args) {
 			close(fd_mani);
 			free(new_mani_path);
 			free(new_proj_path);
-			sending = "c:.Manifest:0\n";
-			sent = send(socket, sending, strlen(sending), 0);
+			sending[0] = 'c';
+			sent = send(socket, sending, 2, 0);
+			printf("Creation of project \"%s\" successful.\n", token);
 			pthread_exit(NULL);
 		} else {
 			sending[0] = 'x';
-			sent = send(socket, sending, 1, 0);
+			sent = send(socket, sending, 2, 0);
 			free(new_proj_path);
+			fprintf(stderr, "ERROR: Creation of project \"%s\" failed.\n", token);
 			pthread_exit(NULL);
+		}
+	} else if (token[0] == 'd') {
+		token = strtok(NULL, ":");
+		char *proj_path = (char *) malloc(strlen(token) + 22);
+		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
+		DIR *dr = opendir(proj_path);
+		char sending[2];
+		if (dr == NULL) {
+			fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
+			sending[0] = 'x';
+			sent = send(socket, sending, 2, 0);
+			pthread_exit(NULL);	
+		} else {
+			int check = remove_dir(proj_path);	
+			if (check == 0) {
+				sending[0] = 'g';
+				sent = send(socket, sending, 2, 0);
+				pthread_exit(NULL);
+			} else {
+				sending[0] = 'b';
+				sent = send(socket, sending, 2, 0);
+				fprintf(stderr, "ERROR: Could not remove directory from server.\n");
+				pthread_exit(NULL);
+			}
 		}
 	}
 	

@@ -3,8 +3,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <math.h>
-#include "clientfunctions.h"
 
 unsigned int tokenize(char *path, char *input, int *version, char *hash) {
 	if (input == NULL) {
@@ -103,4 +105,40 @@ int remover(int fd_manifest, char *path, char *input) {
 	read(fd_manifest, buff, move + total_char);
 	write(fd_manifest, dashes, strlen(dashes));
 	return 0;
+}
+
+int remove_dir(char *path) {
+	DIR *dr;
+	size_t path_len = strlen(path);
+	int ret = -1;
+	if (!(dr = opendir(path))) {
+		fprintf(stderr, "ERROR: Could not open project \"%s\" on server's side.\n", (path + 17));
+		return ret;
+	}
+	struct dirent *de;
+	ret = 0;
+	while ((de = readdir(dr)) != NULL) {
+		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) {
+			continue;
+		}
+		char *new_path = (char *) malloc(strlen(de->d_name) + strlen(path) + 2);
+		if (new_path != NULL) {
+			snprintf(new_path, strlen(de->d_name) + strlen(path) + 2, "%s/%s", path, de->d_name);
+			if (de->d_type == DT_DIR) {
+				ret = remove_dir(new_path);
+			} else {
+				ret = remove(new_path);
+			}
+			if (ret < 0) {
+				fprintf(stderr, "ERROR: Failed to delete \"%s\" from server.", new_path);
+				return ret;
+			}
+		}
+		free(new_path);
+	}
+	ret = rmdir(path);
+	if (ret < 0) {
+		fprintf(stderr, "ERROR: Failed to delete \"%s\" from server.", path);
+	}
+	return ret;
 }
