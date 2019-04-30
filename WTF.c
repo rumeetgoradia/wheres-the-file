@@ -139,7 +139,7 @@ int main (int argc, char **argv) {
 		char *port = (char *) malloc(strlen(token) + 1);
 		strcpy(port, token);
 		char recv_buff[100 + 1];
-		int received, sent;
+		int received, sent;	
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_socktype = SOCK_STREAM;
@@ -181,6 +181,30 @@ int main (int argc, char **argv) {
 			snprintf(sending, strlen(argv[2]) + 3, "c:%s", argv[2]);
 			printf("send: %s\n", sending);
 			sent = send(client_socket, sending, strlen(sending), 0);
+			received = recv(client_socket, recv_buff, sizeof(recv_buff) - 1, 0);
+			recv_buff[received] = '\0';
+			if (recv_buff[0] == 'x') {
+				fprintf(stderr, "ERROR: Project \"%s\" already exists on server.\n", argv[2]);
+				return EXIT_FAILURE;
+			} else {
+				struct stat st = {0};
+				
+				if (stat(argv[2], &st) == -1) {
+					mkdir(argv[2], 0744);
+					char *new_mani_path = (char *) malloc(strlen(argv[2]) + 13);
+					snprintf(new_mani_path, strlen(argv[2]) + 13, "./%s/.Manifest", argv[2]);
+					int fd_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0644);
+					write(fd_mani, "0\n", 2);
+					close(fd_mani);
+					free(new_mani_path);
+					printf("Project \"%s\" initialized successfully!\n");
+				} else {
+					fprintf(stderr, "ERROR: Project \"%s\" created on server, but directory of same name already exists on client-side.\n", argv[2]);
+					return EXIT_FAILURE;
+				}
+			}
+		} else if (strcmp(argv[2], "destroy") == 0) {
+				
 		}
 /*		while(1) {
 			if (received == 0) {

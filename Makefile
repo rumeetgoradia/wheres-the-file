@@ -13,7 +13,6 @@ clean:
 	rm -f WTF
 	rm -f WTFserver
 	rm -f testclient
-	rm -f .configure
 	rm -f test/.Manifest
 	rm -f clientfunctions.o
 	rm -rf .server_directory

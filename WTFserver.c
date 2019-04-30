@@ -115,6 +115,7 @@ int main (int argc, char **argv) {
 		mkdir("./.server_directory", 0744);
 	}
 
+	printf("Waiting for client...\n");
 	while(1) {
 		client_add = malloc(sin_size);
 		/* Accept */
@@ -166,19 +167,23 @@ void *handler(void *args) {
 	}
 	char *token;
 	token = strtok(recv_buffer, ":");
+
 	if (token[0] == 'c') {
+
 		token = strtok(NULL, ":");
-		char *new_proj_path = (char *) malloc(strlen(token) + 21);
+
+		char *new_proj_path = (char *) malloc(strlen(token) + 22);
 		if (token[strlen(token) - 1] != '/') {
-			snprintf(new_proj_path, sizeof(new_proj_path), "./.server_directory/%s/", token);
+			snprintf(new_proj_path, strlen(token) + 22, "./.server_directory/%s/", token);
 		} else {
-			snprintf(new_proj_path, sizeof(new_proj_path), "./.server_directory/%s", token);
+			snprintf(new_proj_path, strlen(token) + 22, "./.server_directory/%s", token);
 		}
+
 		struct stat st = {0};
 		if (stat(new_proj_path, &st) == -1) {
 			mkdir(new_proj_path, 0744);
-			char *new_mani_path = (char *) malloc(strlen(new_proj_path) + 10);
-			snprintf(new_mani_path, sizeof(new_mani_path), "%s/.Manifest", new_proj_path);
+			char *new_mani_path = (char *) malloc(strlen(new_proj_path) + 11);
+			snprintf(new_mani_path, strlen(new_proj_path) + 11, "%s.Manifest", new_proj_path);
 			int fd_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0744);
 			write(fd_mani, "0\n", 2);
 			close(fd_mani);
