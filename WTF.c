@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -217,6 +218,60 @@ int main (int argc, char **argv) {
 			} else {
 				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
 				return EXIT_FAILURE;
+			}
+		} else if (strcmp(argv[1], "currentversion") == 0) {
+			char sending[strlen(argv[2]) + 3];
+			snprintf(sending, strlen(argv[2]) + 3, "v:%s", argv[2]);
+			sent = send(client_socket, sending, strlen(sending), 0);
+			char recv_buff[256];
+			received = recv(client_socket, recv_buff, 255, 0);
+			if (recv_buff[0] == 'x') {
+				fprintf(stderr, "ERROR: Failed to get current version for project \"%s\" from server.\n", argv[2]);
+				return EXIT_FAILURE;
+			}
+			recv_buff[received] = '\0';
+			int file_size = atoi(recv_buff);
+			char *version = (char *) malloc(file_size + 2);
+			received = recv(client_socket, version, file_size, 0);
+			if (version[0] == 'x') {
+				fprintf(stderr, "ERROR: Failed to get current version for project \"%s\" from server.\n", argv[2]);
+				return EXIT_FAILURE;
+			}
+			if (iscntrl(version[0])) {
+				++version;
+			}
+			if (received < file_size) {
+				int offset = 0;
+				int remaining = file_size - received;
+				while ((received = recv(client_socket, (version + offset), remaining, 0)) > 0 && offset < file_size && remaining > 0) {
+					printf("receiving: %s", version + offset);
+					remaining -= received;
+					offset += received;
+				}
+			}
+			version[file_size] = '\0';
+			token = strtok(version, "\n");
+			printf("PROJECT: %s (Version %s)\n", argv[2], token);
+			printf("------------------------\n");
+			int count = 1;
+			while (token != NULL) {
+				token = strtok(NULL, "\n\t");
+				if (token == NULL && count == 1) {
+					printf("No entries\n");
+					break;
+				} else if (token == NULL) {
+					break;
+				}
+				if (count % 3 == 0) {
+					++count;
+					continue;
+				}
+				if (count % 3 == 2) {
+					printf("%s\n", token);
+				} else if (count % 3 == 1) {
+					printf("%s\t", token);
+				}
+				++count;
 			}
 		}
 /*		while(1) {

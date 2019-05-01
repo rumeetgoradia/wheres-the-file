@@ -14,6 +14,5 @@ clean:
 	rm -f WTFserver
 	rm -f testclient
 	rm -f test/.Manifest
-	rm -f helperfunctions.o
-	rm -rf .server_directory
-	rm -rf hello
+	rm -f helperfunctions.o	
+	rm -rf ./hello

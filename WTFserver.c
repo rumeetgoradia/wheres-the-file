@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/sendfile.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -213,20 +214,72 @@ void *handler(void *args) {
 			fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
 			sending[0] = 'x';
 			sent = send(socket, sending, 2, 0);
+			free(proj_path);
 			pthread_exit(NULL);	
 		} else {
 			int check = remove_dir(proj_path);	
 			if (check == 0) {
 				sending[0] = 'g';
 				sent = send(socket, sending, 2, 0);
+				free(proj_path);
 				pthread_exit(NULL);
 			} else {
 				sending[0] = 'b';
 				sent = send(socket, sending, 2, 0);
 				fprintf(stderr, "ERROR: Could not remove directory from server.\n");
+				free(proj_path);
 				pthread_exit(NULL);
 			}
 		}
+	} else if (token[0] == 'v') {
+		token = strtok(NULL, ":");
+		char *mani_path = (char *) malloc(strlen(token) + 31);
+		snprintf(mani_path, strlen(token) + 31, ".server_directory/%s/.Manifest", token);
+		int fd_mani = open(mani_path, O_RDONLY);
+		if (fd_mani < 0) {
+			fprintf(stderr, "ERROR: Unable to open \".Manifest\" file for \"%s\" project.\n", token);
+			free(mani_path);
+			char sending[2] = "x";
+			sent = send(socket, sending, 2, 0);
+			pthread_exit(NULL);
+			exit(EXIT_FAILURE);
+		}
+		struct stat st;
+		if (fstat(fd_mani, &st) < 0) {
+			fprintf(stderr, "ERROR: fstat() failed.\n");
+			char sending[2] = "x";
+			sent = send(socket, sending, 2, 0);
+			free(mani_path);
+			pthread_exit(NULL);
+			exit(EXIT_FAILURE);
+		}
+		char file_size[256];
+		snprintf(file_size, 256, "%d", st.st_size);
+		sent = send(socket, file_size, 256, 0);	
+		if (sent < 0) {
+			fprintf(stderr, "ERROR: Could not send size of \"%s\".\n", mani_path);
+			free(mani_path);
+//			free(contents);
+			char sending[2] = "x";
+			sent = send(socket, sending, 2, 0);
+			pthread_exit(NULL);
+			exit(EXIT_FAILURE);
+		}
+		char contents[st.st_size + 1];
+		int bytes_read = read(fd_mani, contents, st.st_size);
+		contents[bytes_read] = '\0';
+		sent = send(socket, contents, bytes_read, 0);
+		/* off_t offset = 0;
+		int remaining = st.st_size;
+		while (((sent = send(socket, (contents + offset), st.st_size, 0)) > 0) && (remaining > 0)) {
+			printf("sending: %s", contents+offset);
+			remaining -= sent;
+			offset += sent;
+		} */
+		printf("Sent \".Manifest\" file for \"%s\" project to client.\n", token);
+		free(mani_path);
+//		free(contents);
+		pthread_exit(NULL);
 	}
 	
 //	printf("recv: %s\n", recv_buffer);
