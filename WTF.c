@@ -236,6 +236,9 @@ int main (int argc, char **argv) {
 			if (version[0] == 'x') {
 				fprintf(stderr, "ERROR: Failed to get current version for project \"%s\" from server.\n", argv[2]);
 				return EXIT_FAILURE;
+			} else if (version[0] = 'b') {
+				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
+				return EXIT_FAILURE;
 			}
 			if (iscntrl(version[0])) {
 				++version;
