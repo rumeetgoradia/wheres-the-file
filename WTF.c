@@ -59,27 +59,22 @@ int main (int argc, char **argv) {
 		}
 		/* Ensure file exists in project */
 		char *path = (char *) malloc(strlen(argv[2]) + strlen(argv[3]) + 2);
-		strcpy(path, argv[2]);
-		if (argv[2][strlen(argv[2]) - 1] != '/') {
-			path[strlen(argv[2])] = '/';
-		}
-		strcat(path, argv[3]); 
+		snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s/%s", argv[2], argv[3]);
 		int fd_file = open(path, O_RDWR, 0644);
 		if (fd_file < 0) {
 			printf("ERROR: File \"%s\" does not exist in project \"%s\".\n", argv[3], argv[2]);
+			free(path);
 			close(fd_file);
 			return EXIT_FAILURE;
 		}
 		/* Setup .Manifest file path */
-		char *path_mani = (char *) malloc(strlen(argv[2]) + strlen(".Manifest") + 2);
-		strcpy(path_mani, argv[2]);
-		if (argv[2][strlen(argv[2]) - 1] != '/') {
-			path_mani[strlen(argv[2])] = '/';
-		}	
-		strcat(path_mani, ".Manifest");
+		char *path_mani = (char *) malloc(strlen(argv[2]) + 11);
+		snprintf(path_mani, strlen(argv[2]) + 11, "%s/.Manifest", argv[2]);
 		int fd_manifest = open(path_mani, O_RDWR | O_CREAT, 0644);
 		if (fd_manifest < 0) {
 			printf("ERROR: Could not open or create .Manifest file.\n");
+			free(path);
+			free(path_mani);
 			close(fd_manifest);
 			return EXIT_FAILURE;
 		}
@@ -98,7 +93,6 @@ int main (int argc, char **argv) {
 		}
 		char *temp2 = (char *) malloc(sizeof(char) * INT_MAX);
 		total_length = read(fd_manifest, temp2, INT_MAX);
-		lseek(fd_manifest,0,0);
 		char *mani_input = NULL;
 		if (total_length != 0) {
 			mani_input = (char *) malloc(sizeof(char) * (total_length + 1));
@@ -108,18 +102,26 @@ int main (int argc, char **argv) {
 			mani_input = "0\n";
 			write(fd_manifest, "0\n", 2);
 		}
-		free(temp2);
+		free(temp2);	
 		if (strcmp(argv[1], "add") == 0) {
 			if (add(fd_manifest, hashed, path, mani_input) == -1) {
+				free(path);
+				free(path_mani);
 				close(fd_manifest);
 				return EXIT_FAILURE;
 			}
+			free(path);
+			free(path_mani);
 			close(fd_manifest);
 		} else {	
 			if (remover(fd_manifest, path, mani_input) == -1) {
+				free(path);
+				free(path_mani);
 				close(fd_manifest);
 				return EXIT_FAILURE;
 			}
+			free(path);
+			free(path_mani);	
 			close(fd_manifest);
 		}
 	} else {

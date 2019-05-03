@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <math.h>
 
-unsigned int tokenize(char *path, char *input, int *version, char *hash) {
+unsigned int tokenize(char *path, char *input, char *hash) {
 	if (input == NULL) {
 		return 0;	
 	}
@@ -17,18 +17,11 @@ unsigned int tokenize(char *path, char *input, int *version, char *hash) {
 	char *token;
 	unsigned int byte_count = 0;
 	unsigned int prev_bytes = 0;
-	unsigned int check_bytes = 0;
 	short check = 0;
 	token = strtok(whole_string, "\n\t");
 	prev_bytes = strlen(token) + 1;
 	byte_count += prev_bytes;
-	if (version != NULL) {
-		*version = 0;
-	}
 	while (token != NULL) {
-		if (version != NULL) {
-			*version = atoi(token);
-		}
 		token = strtok(NULL, "\n\t");
 		if (token == NULL) {
 			break;
@@ -37,18 +30,14 @@ unsigned int tokenize(char *path, char *input, int *version, char *hash) {
 			if (strcmp(token, hash) == 0) {
 				return -1;
 			} else {
-				return byte_count - prev_bytes - check_bytes;
+				return byte_count;
 			}
 		}
 		if (strcmp(token, path) == 0) {
 			check = 1;
 		}
-		check_bytes = prev_bytes;
 		prev_bytes = strlen(token) + 1;
 		byte_count += prev_bytes;
-	}
-	if (version != NULL) {
-		*version = -1;
 	}
 	return strlen(input);
 	
@@ -56,8 +45,7 @@ unsigned int tokenize(char *path, char *input, int *version, char *hash) {
 
 int add(int fd_manifest, char *hashcode, char *path, char *input) {
 	int *version = (int *) malloc(sizeof(int));
-	*version = 0;
-	int move = tokenize(path, input, version, hashcode);
+	int move = tokenize(path, input, hashcode);
 	if (move == 0) {
 		fprintf(stderr, "ERROR: Could not read \".Manifest\" file.\n");
 		return -1;
@@ -66,26 +54,24 @@ int add(int fd_manifest, char *hashcode, char *path, char *input) {
 		fprintf(stderr, "ERROR: File already up-to-date in local \".Manifest\" file.\n");
 		return -1;
 	}
-	char buff[move];
-	read(fd_manifest, buff, move);
-	char *new_version = (char *) malloc(sizeof(update) / (sizeof(char) + 1));
-	sprintf(new_version, "%d", *version);
-	write(fd_manifest, new_version, strlen(new_version));
-	write(fd_manifest, "\t", 1);
-	write(fd_manifest, path, strlen(path));
-	write(fd_manifest, "\t", 1);
-	write(fd_manifest, hashcode, strlen(hashcode));
-	write(fd_manifest, "\n", 1);
-	close(fd_manifest);
+/*	char buff[move];
+	read(fd_manifest, buff, move); */
+	lseek(fd_manifest, move, SEEK_SET);
+	if (move == strlen(input)) {
+		write(fd_manifest, "0\t", 2);
+		write(fd_manifest, path, strlen(path));
+		write(fd_manifest, "\t", 1);
+		write(fd_manifest, hashcode, strlen(hashcode));	
+		write(fd_manifest, "\n", 1);
+	} else {
+		write(fd_manifest, hashcode, strlen(hashcode));
+	}
 	return 0;
 }
 
 int remover(int fd_manifest, char *path, char *input) {
-	int *version = (int *) malloc(sizeof(int));
-	*version = 0;
-	char dashes[64];
-	memset(dashes, '-', sizeof(dashes));
-	int move = tokenize(path, input, version, dashes);
+	char dashes[65] = "----------------------------------------------------------------";
+	int move = tokenize(path, input, dashes);
 	if (move == strlen(input)) {
 		fprintf(stderr, "ERROR: File \"%s\" not in \".Manifest\" file.\n", path);
 		return -1;
@@ -94,14 +80,9 @@ int remover(int fd_manifest, char *path, char *input) {
 		fprintf(stderr, "ERROR: File \"%s\" already removed from \".Manifest\" file.\n", path);
 		return -1;
 	}
-	int total_char = 2 + strlen(path);
-	if (*version == 0) {
-		++total_char;
-	} else {
-		total_char += (int) log(*version);
-	}
-	char buff[move + total_char];
-	read(fd_manifest, buff, move + total_char);
+/*	char buff[move];
+	read(fd_manifest, buff, move); */
+	lseek(fd_manifest, move, SEEK_SET);
 	write(fd_manifest, dashes, strlen(dashes));
 	return 0;
 }
