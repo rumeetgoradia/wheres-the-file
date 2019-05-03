@@ -68,9 +68,8 @@ int add(int fd_manifest, char *hashcode, char *path, char *input) {
 	}
 	char buff[move];
 	read(fd_manifest, buff, move);
-	int update = *version + 1;
 	char *new_version = (char *) malloc(sizeof(update) / (sizeof(char) + 1));
-	sprintf(new_version, "%d", update);
+	sprintf(new_version, "%d", *version);
 	write(fd_manifest, new_version, strlen(new_version));
 	write(fd_manifest, "\t", 1);
 	write(fd_manifest, path, strlen(path));
