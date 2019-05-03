@@ -183,8 +183,9 @@ void *handler(void *args) {
 			snprintf(new_proj_path, strlen(token) + 22, "./.server_directory/%s", token);
 		}
 		char sending[2];
-		struct stat st = {0};
-		if (stat(new_proj_path, &st) == -1) {
+/*		struct stat st = {0};
+		if (stat(new_proj_path, &st) == -1) { */
+		if (check_dir(new_proj_path) == -1) {
 			mkdir(new_proj_path, 0744);
 			char *new_mani_path = (char *) malloc(strlen(new_proj_path) + 11);
 			snprintf(new_mani_path, strlen(new_proj_path) + 11, "%s.Manifest", new_proj_path);
@@ -208,9 +209,8 @@ void *handler(void *args) {
 		token = strtok(NULL, ":");
 		char *proj_path = (char *) malloc(strlen(token) + 22);
 		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
-		DIR *dr = opendir(proj_path);
 		char sending[2];
-		if (dr == NULL) {
+		if (check_dir(proj_path) == -1) {
 			fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
 			sending[0] = 'x';
 			sent = send(socket, sending, 2, 0);
@@ -226,19 +226,30 @@ void *handler(void *args) {
 			} else {
 				sending[0] = 'b';
 				sent = send(socket, sending, 2, 0);
-				fprintf(stderr, "ERROR: Could not remove directory from server.\n");
+				fprintf(stderr, "ERROR: Could not remove \"%s\" project from server.\n", token);
 				free(proj_path);
 				pthread_exit(NULL);
 			}
 		}
 	} else if (token[0] == 'v') {
 		token = strtok(NULL, ":");
+		char *proj_path = (char *) malloc(strlen(token) + 22);
+		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
+		if (check_dir(proj_path) == -1) {
+			char sending[2] = "b";
+			sent = send(socket, sending, 2, 0);
+			fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
+			free(proj_path);
+			pthread_exit(NULL);
+		}
+		free(proj_path);
 		char *mani_path = (char *) malloc(strlen(token) + 31);
 		snprintf(mani_path, strlen(token) + 31, ".server_directory/%s/.Manifest", token);
 		int fd_mani = open(mani_path, O_RDONLY);
 		if (fd_mani < 0) {
 			fprintf(stderr, "ERROR: Unable to open \".Manifest\" file for \"%s\" project.\n", token);
 			free(mani_path);
+			free(proj_path);
 			char sending[2] = "x";
 			sent = send(socket, sending, 2, 0);
 			pthread_exit(NULL);
@@ -250,6 +261,7 @@ void *handler(void *args) {
 			char sending[2] = "x";
 			sent = send(socket, sending, 2, 0);
 			free(mani_path);
+
 			pthread_exit(NULL);
 			exit(EXIT_FAILURE);
 		}
