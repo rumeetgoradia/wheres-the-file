@@ -254,7 +254,7 @@ void *handler(void *args) {
 			sent = send(socket, sending, 2, 0);
 			pthread_exit(NULL);	
 		}
-		struct stat st;
+		struct stat st = {0};
 		if (fstat(fd_mani, &st) < 0) {
 			fprintf(stderr, "ERROR: fstat() failed.\n");
 			char sending[2] = "x";
@@ -270,7 +270,6 @@ void *handler(void *args) {
 		if (sent < 0) {
 			fprintf(stderr, "ERROR: Could not send size of \"%s\".\n", mani_path);
 			free(mani_path);
-//			free(contents);
 			char sending[2] = "x";
 			sent = send(socket, sending, 2, 0);
 			pthread_exit(NULL);	
@@ -288,7 +287,6 @@ void *handler(void *args) {
 		} */
 		printf("Sent \".Manifest\" file for \"%s\" project to client.\n", token);
 		free(mani_path);
-//		free(contents);
 		pthread_exit(NULL);
 	} else if (token[0] == 'o') {
 		token = strtok(NULL, ":");
@@ -305,11 +303,39 @@ void *handler(void *args) {
 		char *mani_path = (char *) malloc(strlen(token) + 31);
 		snprintf(mani_path, strlen(token) + 31, ".server_directory/%s/.Manifest", token);
 		int fd_mani = open(mani_path, O_RDONLY);
-		
-		
+		if (fd_mani < 0) {
+			fprintf(stderr, "ERROR: Unable to open \".Manifest\" file for \"%s\" project.\n", token);
+			free(mani_path);
+			free(proj_path);
+			char sending[2] = "x";
+			sent = send(socket, sending, 2, 0);
+			pthread_exit(NULL);	
+		}
+		struct stat st = {0};
+		if (fstat(fd_mani, &st) < 0) {
+			fprintf(stderr, "ERROR: fstat() failed.\n");
+			char sending[2] = "x";
+			sent = send(socket, sending, 2, 0);
+			free(mani_path);
+			pthread_exit(NULL);
+
+		}
+		char file_size[256];
+		snprintf(file_size, 256, "%d", st.st_size);
+		sent = send(socket, file_size, 256, 0);	
+		if (sent < 0) {
+			fprintf(stderr, "ERROR: Could not send size of \"%s\".\n", mani_path);
+			free(mani_path);
+			char sending[2] = "x";
+			sent = send(socket, sending, 2, 0);
+			pthread_exit(NULL);	
+		}
+		char contents[st.st_size + 1];
+		int bytes_read = read(fd_mani, contents, st.st_size);
+		contents[bytes_read] = '\0';
+		sent = send(socket, contents, bytes_read, 0);	
 	}
 	
-//	printf("recv: %s\n", recv_buffer);
 	
 
 /*	while(1) {
