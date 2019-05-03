@@ -107,6 +107,14 @@ int remover(int fd_manifest, char *path, char *input) {
 	return 0;
 }
 
+int check_dir(char *path) {
+	DIR *dr = opendir(path);
+	if (dr == NULL) {
+		return -1;	
+	}
+	return 0;
+}
+
 int remove_dir(char *path) {
 	DIR *dr;
 	size_t path_len = strlen(path);
