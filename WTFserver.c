@@ -152,18 +152,18 @@ int main (int argc, char **argv) {
 void *handler(void *args) {
 	struct work_args *wa;
 	struct server_context *cntx;
-	int socket, sent, received, i;	
+	int client_socket, sent, received, i;	
 	char recv_buffer[512];
 
 	wa = (struct work_args *) args;
-	socket = wa->socket;
+	client_socket = wa->socket;
 	cntx = wa->cntx;
 
 	pthread_detach(pthread_self());
 
-	printf("Socket %d connected.\n", socket);
+	printf("Socket %d connected.\n", client_socket);
 	
-	received = recv(socket, recv_buffer, sizeof(recv_buffer) - 1, 0);
+	received = recv(client_socket, recv_buffer, sizeof(recv_buffer) - 1, 0);
 	recv_buffer[received] = '\0';
 	if (received <= 0) {
 		fprintf(stderr, "ERROR: Server-side recv() failed.\n");
@@ -195,12 +195,12 @@ void *handler(void *args) {
 			free(new_mani_path);
 			free(new_proj_path);
 			sending[0] = 'c';
-			sent = send(socket, sending, 2, 0);
+			sent = send(client_socket, sending, 2, 0);
 			printf("Creation of project \"%s\" successful.\n", token);
 			pthread_exit(NULL);
 		} else {
 			sending[0] = 'x';
-			sent = send(socket, sending, 2, 0);
+			sent = send(client_socket, sending, 2, 0);
 			free(new_proj_path);
 			fprintf(stderr, "ERROR: Creation of project \"%s\" failed.\n", token);
 			pthread_exit(NULL);
@@ -213,19 +213,19 @@ void *handler(void *args) {
 		if (check_dir(proj_path) == -1) {
 			fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
 			sending[0] = 'x';
-			sent = send(socket, sending, 2, 0);
+			sent = send(client_socket, sending, 2, 0);
 			free(proj_path);
 			pthread_exit(NULL);	
 		} else {
 			int check = remove_dir(proj_path);	
 			if (check == 0) {
 				sending[0] = 'g';
-				sent = send(socket, sending, 2, 0);
+				sent = send(client_socket, sending, 2, 0);
 				free(proj_path);
 				pthread_exit(NULL);
 			} else {
 				sending[0] = 'b';
-				sent = send(socket, sending, 2, 0);
+				sent = send(client_socket, sending, 2, 0);
 				fprintf(stderr, "ERROR: Could not remove \"%s\" project from server.\n", token);
 				free(proj_path);
 				pthread_exit(NULL);
@@ -237,7 +237,7 @@ void *handler(void *args) {
 		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
 		if (check_dir(proj_path) == -1) {
 			char sending[2] = "b";
-			sent = send(socket, sending, 2, 0);
+			sent = send(client_socket, sending, 2, 0);
 			fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
 			free(proj_path);
 			pthread_exit(NULL);
@@ -251,14 +251,14 @@ void *handler(void *args) {
 			free(mani_path);
 			free(proj_path);
 			char sending[2] = "x";
-			sent = send(socket, sending, 2, 0);
+			sent = send(client_socket, sending, 2, 0);
 			pthread_exit(NULL);	
 		}
 		struct stat st = {0};
 		if (fstat(fd_mani, &st) < 0) {
 			fprintf(stderr, "ERROR: fstat() failed.\n");
 			char sending[2] = "x";
-			sent = send(socket, sending, 2, 0);
+			sent = send(client_socket, sending, 2, 0);
 			free(mani_path);
 
 			pthread_exit(NULL);
@@ -266,21 +266,21 @@ void *handler(void *args) {
 		}
 		char file_size[256];
 		snprintf(file_size, 256, "%d", st.st_size);
-		sent = send(socket, file_size, 256, 0);	
+		sent = send(client_socket, file_size, 256, 0);	
 		if (sent < 0) {
 			fprintf(stderr, "ERROR: Could not send size of \"%s\".\n", mani_path);
 			free(mani_path);
 			char sending[2] = "x";
-			sent = send(socket, sending, 2, 0);
+			sent = send(client_socket, sending, 2, 0);
 			pthread_exit(NULL);	
 		}
 		char contents[st.st_size + 1];
 		int bytes_read = read(fd_mani, contents, st.st_size);
 		contents[bytes_read] = '\0';
-		sent = send(socket, contents, bytes_read, 0);
+		sent = send(client_socket, contents, bytes_read, 0);
 		/* off_t offset = 0;
 		int remaining = st.st_size;
-		while (((sent = send(socket, (contents + offset), st.st_size, 0)) > 0) && (remaining > 0)) {
+		while (((sent = sendclient_(socket, (contents + offset), st.st_size, 0)) > 0) && (remaining > 0)) {
 			printf("sending: %s", contents+offset);
 			remaining -= sent;
 			offset += sent;
@@ -294,7 +294,7 @@ void *handler(void *args) {
 		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
 		if (check_dir(proj_path) == -1) {
 			char sending[2] = "b";
-			sent = send(socket, sending, 2, 0);
+			sent = send(client_socket, sending, 2, 0);
 			free(proj_path);
 			fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
 			pthread_exit(NULL);
@@ -308,32 +308,36 @@ void *handler(void *args) {
 			free(mani_path);
 			free(proj_path);
 			char sending[2] = "x";
-			sent = send(socket, sending, 2, 0);
+			sent = send(client_socket, sending, 2, 0);
 			pthread_exit(NULL);	
 		}
 		struct stat st = {0};
 		if (fstat(fd_mani, &st) < 0) {
 			fprintf(stderr, "ERROR: fstat() failed.\n");
 			char sending[2] = "x";
-			sent = send(socket, sending, 2, 0);
+			sent = send(client_socket, sending, 2, 0);
 			free(mani_path);
 			pthread_exit(NULL);
 
 		}
 		char file_size[256];
 		snprintf(file_size, 256, "%d", st.st_size);
-		sent = send(socket, file_size, 256, 0);	
+		sent = send(client_socket, file_size, 256, 0);	
 		if (sent < 0) {
 			fprintf(stderr, "ERROR: Could not send size of \"%s\".\n", mani_path);
 			free(mani_path);
 			char sending[2] = "x";
-			sent = send(socket, sending, 2, 0);
+			sent = send(client_socket, sending, 2, 0);
 			pthread_exit(NULL);	
 		}
 		char contents[st.st_size + 1];
 		int bytes_read = read(fd_mani, contents, st.st_size);
 		contents[bytes_read] = '\0';
-		sent = send(socket, contents, bytes_read, 0);	
+		sent = send(client_socket, contents, bytes_read, 0);
+		char buffer[BUFSIZ];
+		recv(client_socket, buffer, BUFSIZ, 0);
+        	file_size = atoi(buffer);
+		
 	}
 	
 	
