@@ -252,8 +252,7 @@ void *handler(void *args) {
 			free(proj_path);
 			char sending[2] = "x";
 			sent = send(socket, sending, 2, 0);
-			pthread_exit(NULL);
-			exit(EXIT_FAILURE);
+			pthread_exit(NULL);	
 		}
 		struct stat st;
 		if (fstat(fd_mani, &st) < 0) {
@@ -263,7 +262,7 @@ void *handler(void *args) {
 			free(mani_path);
 
 			pthread_exit(NULL);
-			exit(EXIT_FAILURE);
+
 		}
 		char file_size[256];
 		snprintf(file_size, 256, "%d", st.st_size);
@@ -274,8 +273,7 @@ void *handler(void *args) {
 //			free(contents);
 			char sending[2] = "x";
 			sent = send(socket, sending, 2, 0);
-			pthread_exit(NULL);
-			exit(EXIT_FAILURE);
+			pthread_exit(NULL);	
 		}
 		char contents[st.st_size + 1];
 		int bytes_read = read(fd_mani, contents, st.st_size);
@@ -292,6 +290,23 @@ void *handler(void *args) {
 		free(mani_path);
 //		free(contents);
 		pthread_exit(NULL);
+	} else if (token[0] == 'o') {
+		token = strtok(NULL, ":");
+		char *proj_path = (char *) malloc(strlen(token) + 22);
+		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
+		if (check_dir(proj_path) == -1) {
+			char sending[2] = "b";
+			sent = send(socket, sending, 2, 0);
+			free(proj_path);
+			fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
+			pthread_exit(NULL);
+		}
+		free(proj_path);
+		char *mani_path = (char *) malloc(strlen(token) + 31);
+		snprintf(mani_path, strlen(token) + 31, ".server_directory/%s/.Manifest", token);
+		int fd_mani = open(mani_path, O_RDONLY);
+		
+		
 	}
 	
 //	printf("recv: %s\n", recv_buffer);

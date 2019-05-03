@@ -278,6 +278,10 @@ int main (int argc, char **argv) {
 				}
 				++count;
 			}
+		} else if (strcmp(argv[1], "commit")) {
+			char sending[strlen(argv[2]) + 3];
+			snprintf(sending, strlen(argv[2]) + 3, "o:%s", argv[2]);
+			sent = send(client_socket, sending, strlen(sending), 0);
 		}
 /*		while(1) {
 			if (received == 0) {
