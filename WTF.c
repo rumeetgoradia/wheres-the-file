@@ -382,8 +382,7 @@ int main (int argc, char **argv) {
 			sent = send(client_socket, comm_size, strlen(comm_size), 0);
 			sent = send(client_socket, version, strlen(version), 0);
 			free(version);
-<<<<<<< HEAD
-			lseek(fd_comm, 0, SEEK_SET);
+/*			lseek(fd_comm, 0, SEEK_SET);
 			char *comm_buff = (char *) malloc((get_file_size(fd_comm) + 1));
 			bytes_read = read(fd_comm, comm_buff, get_file_size(fd_comm));
 			comm_buff[bytes_read] = '\0';
@@ -396,8 +395,8 @@ int main (int argc, char **argv) {
 					return EXIT_FAILURE;
 				}
 				total += nb;
-			}
-			printf("sent: %d\n", total);
+			} 
+			printf("sent: %d\n", total); */
 //			sent = send(client_socket, comm_buff, strlen(comm_buff), 0);
 //			printf("sent: %d\n", sent);
 			char comm_buff[get_file_size(fd_comm) + 1];
