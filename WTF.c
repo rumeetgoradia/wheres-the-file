@@ -78,8 +78,20 @@ int main (int argc, char **argv) {
 			close(fd_manifest);
 			return EXIT_FAILURE;
 		}
+		char *temp2 = (char *) malloc(sizeof(char) * INT_MAX);
+		int total_length = read(fd_manifest, temp2, INT_MAX);
+		char *mani_input = NULL;
+		if (total_length != 0) {
+			mani_input = (char *) malloc(sizeof(char) * (total_length + 1));
+			strcpy(mani_input, temp2);
+		} else {
+			mani_input = (char *) malloc(sizeof(char) * 3);
+			mani_input = "0\n";
+			write(fd_manifest, "0\n", 2);
+		}
+		free(temp2);
 		char *temp = (char *) malloc(sizeof(char) * INT_MAX);
-		int total_length = read(fd_file, temp, INT_MAX);
+		total_length = read(fd_file, temp, INT_MAX);
 		char *input = (char *) malloc(sizeof(char) * (total_length + 1));
 		strcpy(input, temp);
 		free(temp);
@@ -90,19 +102,7 @@ int main (int argc, char **argv) {
 		int i = 0;
 		for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
 			sprintf(hashed + (i * 2), "%02x", hash[i]);
-		}
-		char *temp2 = (char *) malloc(sizeof(char) * INT_MAX);
-		total_length = read(fd_manifest, temp2, INT_MAX);
-		char *mani_input = NULL;
-		if (total_length != 0) {
-			mani_input = (char *) malloc(sizeof(char) * (total_length + 1));
-			strcpy(mani_input, temp2);
-		} else {
-			mani_input = (char *) malloc(sizeof(char) * 3);
-			mani_input = "0\n";
-			write(fd_manifest, "0\n", 2);
-		}
-		free(temp2);	
+		}	
 		if (strcmp(argv[1], "add") == 0) {
 			if (add(fd_manifest, hashed, path, mani_input) == -1) {
 				free(path);
@@ -309,6 +309,37 @@ int main (int argc, char **argv) {
 			}
 			char client_mani_input[st.st_size + 2];
 			read(fd_mani, client_mani_input, st.st_size); 
+			char *token_client, *token_server;
+			token_client = strsep(&client_mani_input, "\n");
+			token_server = strsep(&server_mani_input, "\n");
+			if (atoi(token_client) != atoi(token_server)) {
+				fprintf(stderr, "ERROR: Local \"%s\" project has not been updated.\n", token);
+				free(client_mani);
+				return EXIT_FAILURE;
+			}
+			/* Setup .Commit file path */
+			char *path_comm = (char *) malloc(strlen(argv[2]) + 9);
+			snprintf(path_comm, strlen(argv[2]) + 11, "%s/.Commit", argv[2]);
+			int fd_comm = open(path_comm, O_RDWR | O_CREAT, 0644);
+			if (fd_comm < 0) {
+				printf("ERROR: Could not open or create \".Commit\" file for \"%s\" project.\n", argv[2]);
+				free(path_comm);
+				close(fd_comm);
+				return EXIT_FAILURE;
+			}
+			char version_buff[256];
+			int bytes_read = read(fd_com, version_buff, 256);
+			char *version = NULL;
+			if (bytes_read == 0) {
+				version = (char *)  malloc(2);
+				version[0] = '0';
+				write(fd_comm, "0\n", 2);
+			} else {
+				char *vers_token = strtok(version_buff, "\n");
+				version = (char *) malloc(strlen(vers_token) + 1);
+				snprintf(version, strlen(vers_token) + 1, "%s", vers_token);
+			}
+			commit(fd_commit, client_mani_input, server_mani_input, fd_mani);
 		}
 /*		while(1) {
 			if (received == 0) {
