@@ -60,7 +60,7 @@ int main (int argc, char **argv) {
 		/* Ensure file exists in project */
 		char *path = (char *) malloc(strlen(argv[2]) + strlen(argv[3]) + 2);
 		snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s/%s", argv[2], argv[3]);
-		int fd_file = open(path, O_RDWR, 0644);
+		int fd_file = open(path, O_RDONLY);
 		if (fd_file < 0) {
 			printf("ERROR: File \"%s\" does not exist in project \"%s\".\n", argv[3], argv[2]);
 			free(path);
@@ -90,14 +90,11 @@ int main (int argc, char **argv) {
 			write(fd_manifest, "0\n", 2);
 		}
 		free(temp2);
-		char *temp = (char *) malloc(sizeof(char) * INT_MAX);
-		total_length = read(fd_file, temp, INT_MAX);
-		char *input = (char *) malloc(sizeof(char) * (total_length + 1));
-		strcpy(input, temp);
-		free(temp);
+		int size = get_file_size(fd_file);
+		char input[size + 1];
+		read(fd_file, input, size);
 		unsigned char hash[SHA256_DIGEST_LENGTH];
 		SHA256(input, strlen(input), hash);
-		free(input);
 		char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
 		int i = 0;
 		for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
@@ -195,7 +192,7 @@ int main (int argc, char **argv) {
 					mkdir(argv[2], 0744);
 					char *new_mani_path = (char *) malloc(strlen(argv[2]) + 13);
 					snprintf(new_mani_path, strlen(argv[2]) + 13, "./%s/.Manifest", argv[2]);
-					int fd_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0644);
+					int fd_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0744);
 					write(fd_mani, "0\n", 2);
 					close(fd_mani);
 					free(new_mani_path);
@@ -294,7 +291,7 @@ int main (int argc, char **argv) {
 				}
 				++count;
 			}
-		} else if (strcmp(argv[1], "commit")) {
+		} else if (strcmp(argv[1], "commit") == 0) {
 			if (argc < 3) {
 				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
 				return EXIT_FAILURE;
@@ -313,8 +310,12 @@ int main (int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 			int file_size = atoi(recv_buff);
-			char server_mani_input[file_size + 2];
+			char *server_mani_input = (char *) malloc(file_size + 2);
 			received = recv(client_socket, server_mani_input, file_size, 0);
+			server_mani_input[received] = '\0';
+			if (iscntrl(server_mani_input[0])) {
+				++server_mani_input;
+			}
 			char *client_mani = (char *) malloc(strlen(token) + 11);
 			snprintf(client_mani, strlen(token) + 11, "%s/.Manifest", argv[2]);
 			int fd_mani = open(client_mani, O_RDWR);
@@ -333,18 +334,24 @@ int main (int argc, char **argv) {
 			}
 			char client_mani_input[st.st_size + 2];
 			read(fd_mani, client_mani_input, st.st_size); 
-			char *vers_token = strtok(client_mani_input, "\n");
+
+			char get_version[st.st_size + 2];
+			strcpy(get_version, client_mani_input);
+			char *vers_token = strtok(get_version, "\n");
 			int client_mani_vers = atoi(vers_token);			
+
 			vers_token = strtok(server_mani_input, "\n");
+
 			if (client_mani_vers != atoi(vers_token)) {
 				fprintf(stderr, "ERROR: Local \"%s\" project has not been updated.\n", token);
 				free(client_mani);
 				return EXIT_FAILURE;
 			}
+
 			/* Setup .Commit file path */
 			char *path_comm = (char *) malloc(strlen(argv[2]) + 9);
 			snprintf(path_comm, strlen(argv[2]) + 11, "%s/.Commit", argv[2]);
-			int fd_comm = open(path_comm, O_RDWR | O_CREAT, 0644);
+			int fd_comm = open(path_comm, O_RDWR | O_CREAT | O_APPEND, 0744);
 			if (fd_comm < 0) {
 				printf("ERROR: Could not open or create \".Commit\" file for \"%s\" project.\n", argv[2]);
 				free(path_comm);
@@ -357,15 +364,44 @@ int main (int argc, char **argv) {
 			if (bytes_read == 0) {
 				version = (char *) malloc(2);
 				version[0] = '0';
-				write(fd_comm, "0\n", 2);
+				write(fd_comm, "0\n", 2);	
 			} else {
 				vers_token = strtok(version_buff, "\n");
-				version = (char *) malloc(strlen(vers_token) + 1);
-				snprintf(version, strlen(vers_token) + 1, "%s", vers_token);
-				fd_comm = open(path_comm, O_RDWR | O_TRUNC);
-				write(fd_comm, version, strlen(vers_token) + 1);
+				int vers = atoi(vers_token) + 1;
+				version = (char *) malloc((sizeof(vers) + 2));
+				snprintf(version, sizeof(vers) + 2, "%d\n", vers);
+				fd_comm = open(path_comm, O_RDWR | O_TRUNC | O_APPEND);
+				write(fd_comm, version, strlen(version));
 			}
-			commit(fd_comm, client_mani_input, server_mani_input, fd_mani);
+			if (commit(fd_comm, client_mani_input, server_mani_input, fd_mani) == -1) {
+				fprintf(stderr, "ERROR: Local \"%s\" project is not up-to-date with server.\n", argv[2]);
+				return EXIT_FAILURE;
+			}
+			char comm_size[256];
+			snprintf(comm_size, 256, "%d", get_file_size(fd_comm));
+			sent = send(client_socket, comm_size, strlen(comm_size), 0);
+			sent = send(client_socket, version, strlen(version), 0);
+			free(version);
+			char comm_buff[get_file_size(fd_comm) + 1];
+			lseek(fd_comm, 0, SEEK_SET);
+			bytes_read = read(fd_comm, comm_buff, get_file_size(fd_comm));
+			comm_buff[bytes_read] = '\0';
+			printf("comm: %s\n", comm_buff);
+			sent = send(client_socket, comm_buff, bytes_read, 0);
+/*			int offset = 0;
+			int remaining = get_file_size(fd_comm);
+			while ((remaining > 0) && ((sent = sendfile(client_socket, fd_comm, &offset, BUFSIZ)) > 0)) {
+				remaining -= sent;
+			} */
+			char final[5];
+			recv(client_socket, final, 5, 0);
+			if (final[0] == 'd') {
+				fprintf(stderr, "ERROR: Server failed to create its own \".Commit\" file for \"%s\" project.\n", argv[2]);
+				return EXIT_FAILURE;
+			} else if (final[0] == 'g') {
+				printf("Commit successful!\n");
+			}	
+			close(fd_comm);	
 		}
 /*		while(1) {
 			if (received == 0) {

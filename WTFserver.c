@@ -153,7 +153,7 @@ void *handler(void *args) {
 	struct work_args *wa;
 	struct server_context *cntx;
 	int client_socket, sent, received, i;	
-	char recv_buffer[512];
+	char recv_buffer[BUFSIZ];
 
 	wa = (struct work_args *) args;
 	client_socket = wa->socket;
@@ -163,7 +163,7 @@ void *handler(void *args) {
 
 	printf("Socket %d connected.\n", client_socket);
 	
-	received = recv(client_socket, recv_buffer, sizeof(recv_buffer) - 1, 0);
+	received = recv(client_socket, recv_buffer, BUFSIZ - 1, 0);
 	recv_buffer[received] = '\0';
 	if (received <= 0) {
 		fprintf(stderr, "ERROR: Server-side recv() failed.\n");
@@ -337,9 +337,11 @@ void *handler(void *args) {
 		char buffer[BUFSIZ];
 		recv(client_socket, buffer, BUFSIZ, 0);
 		int remaining = atoi(buffer);
+		printf("remaining: %d\n", remaining);
 		recv(client_socket, buffer, BUFSIZ, 0);
 		int version = atoi(buffer);
-		char *comm_path = (char *) malloc(strlen(token) + 28 + sizeof(int));
+		printf("version: %d\n", version);
+		char *comm_path = (char *) malloc(strlen(token) + 28 + strlen(buffer));
 		snprintf(comm_path, strlen(token) + 28, ".server_directory/%s/.Commit%d", token, version);
 		int fd_comm_server = open(comm_path, O_CREAT | O_WRONLY, 0744);
 		if (fd_comm_server < 0) {
@@ -349,11 +351,26 @@ void *handler(void *args) {
 			sent = send(client_socket, sending, 2, 0);
 			pthread_exit(NULL);
 		}
-		int len = 0;
+		char *comm_buff = (char *) malloc(remaining + 1);
+		received = recv(client_socket, comm_buff, remaining, 0);
+		if (iscntrl(comm_buff[0])) {
+			++comm_buff;
+			++comm_buff;
+		}
+		printf("received: %s\n", comm_buff);
+		comm_buff[received] = '\0';
+		write(fd_comm_server, comm_buff, received);
+		printf("wrote!\n");
+
+	/*	int len = 0;
+		printf("passed creation\n");
 		while ((remaining > 0) && ((len = recv(client_socket, buffer, BUFSIZ, 0)) > 0)) {
+			printf("%s\n", buffer);
 			write(fd_comm_server, buffer, len);
 			remaining -= len;
-		}
+		} */
+		char sending[2] = "g";
+		sent = send(client_socket, sending, 2, 0);
 		close(fd_comm_server);
 	}
 	

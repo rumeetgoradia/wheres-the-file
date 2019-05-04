@@ -8,7 +8,6 @@ helperfunctions.o: helperfunctions.c
 clean:
 	rm -f WTF
 	rm -f WTFserver
-	rm -f testclient
-	rm -f test/.Manifest
+	rm -f testclient	
 	rm -f helperfunctions.o	
 

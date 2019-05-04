@@ -9,6 +9,7 @@
 #include <math.h>
 #include <openssl/sha.h>
 
+
 unsigned int tokenize(char *path, char *input, char *hash) {
 	if (input == NULL) {
 		return 0;	
@@ -145,12 +146,12 @@ int get_file_size(int fd) {
 }
 
 int commit_check(char *path, char *hash, int given_version, char *other_mani, int dashes) {
-	char *token = strtok(other_mani, "\t\n");
+	char *token = strtok(other_mani, "\n");
 	int count = 0;
 	int check = 0;
 	int version = 0;
 	while (token != NULL) {
-		token = strtok(NULL, "\t\n");
+		token = strtok(NULL, "\n\t");
 		if (token == NULL) {
 			break;
 		}
@@ -172,22 +173,32 @@ int commit_check(char *path, char *hash, int given_version, char *other_mani, in
 		}
 			
 	}
-	return dashes;
+	return 0;
 }
 
 int commit(int fd_comm, char *client_mani, char *server_mani, int fd_mani) {
-	char *token = strtok(client_mani, "\t\n");
+
+	char temp[strlen(client_mani) + 1];
+	strcpy(temp, client_mani);
+	char *token = strtok(temp, "\n");
 	int count = 0;
 	int version = 0;
 	unsigned char hash[SHA256_DIGEST_LENGTH];
 	char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
 	char *path = NULL;
+	int bytes = 2;
 	while (token != NULL) {
 		token = strtok(NULL, "\t\n");
-		if (token == NULL) {
-			break;
-		}
 		++count;
+		if (token == NULL) {
+			if (bytes < strlen(client_mani) - 1) {
+				strcpy(temp, client_mani);
+				token = strtok(&(temp[bytes - 1]), "\t\n"); 
+			} else {
+				break;
+			}
+		}
+
 		if (count % 3 == 1) {
 			version = atoi(token);
 			++version;
@@ -204,10 +215,11 @@ int commit(int fd_comm, char *client_mani, char *server_mani, int fd_mani) {
 			path = malloc(strlen(token) + 1);
 			snprintf(path, strlen(token) + 1, "%s", token);
 		} else {
-//			int check = add(0, hashed, path, client_mani, 0);
+
 			int check = strcmp(token, hashed);
 			int dash_check = strcmp(token, "----------------------------------------------------------------");
 			int comm_check = commit_check(path, hash, version, server_mani, dash_check);
+
 			if (dash_check != 0) {
 				if (comm_check == 2) {
 					write(fd_comm, "U\t", 2);
@@ -219,7 +231,7 @@ int commit(int fd_comm, char *client_mani, char *server_mani, int fd_mani) {
 				return -1;
 			}
 			if ((check == 0 && comm_check == -1) || (dash_check == 0 && comm_check == 0)) {
-				return 0;
+				continue;
 			}
 			if (dash_check == 0 && comm_check == 2) {
 				write(fd_comm, "D\t", 2);
@@ -231,7 +243,11 @@ int commit(int fd_comm, char *client_mani, char *server_mani, int fd_mani) {
 			write(fd_comm, path, strlen(path));
 			write(fd_comm, "\t", 1);
 			write(fd_comm, hashed, strlen(hashed));
+			write(fd_comm, "\n", 1);
+			free(version_string);
 		}
-	}	
+		bytes += strlen(token) + 1;
+	}
+	return 1;
 		
 }
