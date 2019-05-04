@@ -11,4 +11,4 @@ clean:
 	rm -f testclient
 	rm -f test/.Manifest
 	rm -f helperfunctions.o	
-	rm -rf ./hello
+
