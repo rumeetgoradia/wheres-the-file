@@ -381,55 +381,18 @@ int main (int argc, char **argv) {
 			char comm_size[256];
 			snprintf(comm_size, 256, "%d", get_file_size(fd_comm));
 			sent = send(client_socket, comm_size, strlen(comm_size), 0);
-			/*sent = send(client_socket, version, strlen(version) - 1, 0);
-			free(version); */
-/*			char test[33];
-			snprintf(test, 33, "yolo");
-			sent = send(client_socket, test, 33, 0); */
 			lseek(fd_comm, 0, SEEK_SET);
 			char comm_buff[get_file_size(fd_comm) + 1];
-/* = (char *) malloc((get_file_size(fd_comm) + 1)); */
 			bytes_read = read(fd_comm, comm_buff, get_file_size(fd_comm));
 			comm_buff[bytes_read] = '\0';
 			sent = send(client_socket, comm_buff, atoi(comm_size), 0);
-			printf("comm: %s\n", comm_buff);
-			/*size_t total = 0;
-			while (total < atoi(comm_size)) {
-				ssize_t nb = send(client_socket, comm_buff + total, atoi(comm_size) - total, 0);
-				if (nb == -1) {
-					fprintf(stderr, "ERROR: Failed to send \".Commit\" file to server for \"%s\" project.\n", argv[2]);
-					return EXIT_FAILURE;
-				}
-				total += nb;
-			} 
-			printf("sent: %d\n", total);  */
-//			sent = send(client_socket, comm_buff, strlen(comm_buff), 0);
-//			printf("sent: %d\n", sent);
-/*			char comm_buff[get_file_size(fd_comm) + 1];
-			lseek(fd_comm, 0, SEEK_SET);
-			bytes_read = read(fd_comm, comm_buff, get_file_size(fd_comm));
-			comm_buff[bytes_read] = '\0';
-			printf("comm: %s\n", comm_buff);
-			sent = send(client_socket, comm_buff, bytes_read, 0); */
-/*			int offset = 0;
-			int remaining = get_file_size(fd_comm);
-			while ((remaining > 0) && ((sent = sendfile(client_socket, fd_comm, &offset, BUFSIZ)) > 0)) {
-				remaining -= sent;
-			} */
-			char final[3];
-			received = recv(client_socket, final, 3, 0);
-			printf("%c\n", final[0]);
-			printf("%d\n", received);
-/*			if (iscntrl(server_mani_input[0])) {
-				++server_mani_input;
-			}
-			printf("%c\n", server_mani_input[0]);
-			if (server_mani_input[0] == 'd') {
+			received = recv(client_socket, recv_buff, sizeof(recv_buff) - 1, 0);
+			if (recv_buff[0] == 'd') {
 				fprintf(stderr, "ERROR: Server failed to create its own \".Commit\" file for \"%s\" project.\n", argv[2]);
 				return EXIT_FAILURE;
-			} else if (server_mani_input[0] == 'g') {
+			} else if (recv_buff[0] == 'g') {
 				printf("Commit successful!\n");
-			}	*/
+			}
 			close(fd_comm);	
 		}
 /*		while(1) {
