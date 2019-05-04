@@ -381,12 +381,6 @@ int main (int argc, char **argv) {
 			snprintf(comm_size, 256, "%d", get_file_size(fd_comm));
 			sent = send(client_socket, comm_size, strlen(comm_size), 0);
 			sent = send(client_socket, version, strlen(version), 0);
-/*			char checker[3];
-			recv(client_socket, checker, 2, 0);
-			if (checker[0] == 'b') {
-				fprintf(stderr, "ERROR: Server could not create new \".Commit\" file for \"%s\" project.\n", argv[2]);
-				return EXIT_FAILURE;
-			} */
 			free(version);
 			lseek(fd_comm, 0, SEEK_SET);
 			char comm_buff[get_file_size(fd_comm) + 1];
@@ -395,7 +389,7 @@ int main (int argc, char **argv) {
 			comm_buff[bytes_read] = '\0';
 			printf("comm: %s\n", comm_buff);
 			size_t total = 0;
-			while (total != atoi(comm_size)) {
+			while (total < atoi(comm_size)) {
 				ssize_t nb = send(client_socket, comm_buff + total, atoi(comm_size) - total, 0);
 				if (nb == -1) {
 					fprintf(stderr, "ERROR: Failed to send \".Commit\" file to server for \"%s\" project.\n", argv[2]);
