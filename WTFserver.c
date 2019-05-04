@@ -345,16 +345,24 @@ void *handler(void *args) {
 		char *comm_path = (char *) malloc(strlen(token) + 28 + sizeof(version));
 		snprintf(comm_path, strlen(token) + 28 + sizeof(version), ".server_directory/%s/.Commit%d", token, version);
 		int fd_comm_server = open(comm_path, O_CREAT | O_RDWR | O_APPEND, 0744);
+
+		int go_on = 1;
 		if (fd_comm_server < 0) {
 			fprintf(stderr, "ERROR: Unable to create \".Commit%d\" file for \"%s\" project.\n", version, token);
 			free(comm_path);
-			char sending[2] = "d";
-			sent = send(client_socket, sending, 2, 0);
-			pthread_exit(NULL);
+			go_on = 0;
 		}
 		free(comm_path);
+		if (go_on) {
+		printf("got here\n");
 		char comm_buff[remaining + 1];
-		size_t total = 0;
+		printf("receiving now%d\n", remaining);
+		received = recv(client_socket, comm_buff, remaining, 0);
+		printf("done %d\n", received);
+		comm_buff[received] = '\0';
+		write(fd_comm_server, comm_buff, received);
+		printf("wrote\n");
+/*		size_t total = 0;
 		while (total < remaining) {
 			ssize_t nb = recv(client_socket, comm_buff, remaining - total, 0);
 			total += nb;
@@ -365,8 +373,8 @@ void *handler(void *args) {
 			if (write(fd_comm_server, comm_buff, nb) == -1) {
 				fprintf(stderr, "Write to \".Commit%d\" failed.\n", version);
 			}
-		}
-		printf("total: %d\n", total);
+		} 
+		printf("total: %d\n", total); */
 
 	/*	int len = 0;
 		printf("passed creation\n");
@@ -375,8 +383,14 @@ void *handler(void *args) {
 			write(fd_comm_server, buffer, len);
 			remaining -= len;
 		} */
-		char sending[2] = "g";
-		sent = send(client_socket, sending, 2, 0);
+		}
+		if (go_on) {
+			char sending[2] = "g";
+			sent = send(client_socket, sending, 2, 0);
+		} else {
+			char sending[2] = "d";
+			sent = send(client_socket, sending, 2, 0);
+		}
 		close(fd_comm_server);
 	}
 	
