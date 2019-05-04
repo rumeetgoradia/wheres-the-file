@@ -334,17 +334,27 @@ void *handler(void *args) {
 		int bytes_read = read(fd_mani, contents, st.st_size);
 		contents[bytes_read] = '\0';
 		sent = send(client_socket, contents, bytes_read, 0);
+<<<<<<< HEAD
 		char *buffer = (char *) malloc(BUFSIZ);;
+=======
+		char buffer[BUFSIZ];
+>>>>>>> 515d9128a3bdb3420657ba33375bf8a226232f0b
 		recv(client_socket, buffer, BUFSIZ, 0);
 		int remaining = atoi(buffer);
 		printf("remaining: %d\n", remaining);
 		recv(client_socket, buffer, BUFSIZ, 0);
 		int version = atoi(buffer);
 		printf("version: %d\n", version);
+<<<<<<< HEAD
 		free(buffer);
 		char *comm_path = (char *) malloc(strlen(token) + 28 + sizeof(version));
 		snprintf(comm_path, strlen(token) + 28 + sizeof(version), ".server_directory/%s/.Commit%d", token, version);
 		int fd_comm_server = open(comm_path, O_CREAT | O_RDWR | O_APPEND, 0744);
+=======
+		char *comm_path = (char *) malloc(strlen(token) + 28 + strlen(buffer));
+		snprintf(comm_path, strlen(token) + 28, ".server_directory/%s/.Commit%d", token, version);
+		int fd_comm_server = open(comm_path, O_CREAT | O_WRONLY, 0744);
+>>>>>>> 515d9128a3bdb3420657ba33375bf8a226232f0b
 		if (fd_comm_server < 0) {
 			fprintf(stderr, "ERROR: Unable to create \".Commit%d\" file for \"%s\" project.\n", version, token);
 			free(comm_path);
@@ -352,6 +362,7 @@ void *handler(void *args) {
 			sent = send(client_socket, sending, 2, 0);
 			pthread_exit(NULL);
 		}
+<<<<<<< HEAD
 		free(comm_path);
 		char comm_buff[remaining + 1];
 		size_t total = 0;
@@ -367,6 +378,18 @@ void *handler(void *args) {
 			}
 		}
 		printf("total: %d\n", total);
+=======
+		char *comm_buff = (char *) malloc(remaining + 1);
+		received = recv(client_socket, comm_buff, remaining, 0);
+		if (iscntrl(comm_buff[0])) {
+			++comm_buff;
+			++comm_buff;
+		}
+		printf("received: %s\n", comm_buff);
+		comm_buff[received] = '\0';
+		write(fd_comm_server, comm_buff, received);
+		printf("wrote!\n");
+>>>>>>> 515d9128a3bdb3420657ba33375bf8a226232f0b
 
 	/*	int len = 0;
 		printf("passed creation\n");
