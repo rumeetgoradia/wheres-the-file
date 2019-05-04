@@ -257,7 +257,7 @@ int main (int argc, char **argv) {
 			version[file_size] = '\0';
 			token = strtok(version, "\n");
 			printf("PROJECT: %s (Version %s)\n", argv[2], token);
-			printf("------------------------\n");
+			printf("----------------------------\n");
 			int count = 1;
 			while (token != NULL) {
 				token = strtok(NULL, "\n\t");
@@ -282,6 +282,33 @@ int main (int argc, char **argv) {
 			char sending[strlen(argv[2]) + 3];
 			snprintf(sending, strlen(argv[2]) + 3, "o:%s", argv[2]);
 			sent = send(client_socket, sending, strlen(sending), 0);
+			char recv_buff[256];
+			received = recv(client_socket, recv_buff, 255, 0);
+			if (recv_buff[0] == 'x') {
+				fprintf(stderr, "ERROR: Failed to get server's \".Manifest\" file for project \"%s\" from server.\n", argv[2]);
+				return EXIT_FAILURE;
+			}
+			int file_size = atoi(recv_buff);
+			char server_mani_input[file_size + 2];
+			received = recv(client_socket, server_mani_input, file_size, 0);
+			char *client_mani = (char *) malloc(strlen(token) + 11);
+			snprintf(client_mani, strlen(token) + 11, "%s/.Manifest", argv[2]);
+			int fd_mani = open(client_mani, O_RDONLY);
+			if (fd_mani < 0) {
+				fprintf(stderr, "ERROR: Unable to open local \".Manifest\" file for \"%s\" project.\n", argv[2]);
+				free(client_mani);
+				return EXIT_FAILURE;
+			}
+			struct stat st = {0};
+			if (fstat(fd_mani, &st) < 0) {
+				fprintf(stderr, "ERROR: fstat() failed.\n");
+				sending = "x";
+				sent = send(client_socket, sending, 2, 0);
+				free(client_mani);
+				return EXIT_FAILURE;
+			}
+			char client_mani_input[st.st_size + 2];
+			read(fd_mani, client_mani_input, st.st_size); 
 		}
 /*		while(1) {
 			if (received == 0) {
