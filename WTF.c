@@ -238,7 +238,7 @@ int main (int argc, char **argv) {
 			if (version[0] == 'x') {
 				fprintf(stderr, "ERROR: Failed to get current version for project \"%s\" from server.\n", argv[2]);
 				return EXIT_FAILURE;
-			} else if (version[0] = 'b') {
+			} else if (version[0] == 'b') {
 				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
 				return EXIT_FAILURE;
 			}
@@ -293,7 +293,7 @@ int main (int argc, char **argv) {
 			received = recv(client_socket, server_mani_input, file_size, 0);
 			char *client_mani = (char *) malloc(strlen(token) + 11);
 			snprintf(client_mani, strlen(token) + 11, "%s/.Manifest", argv[2]);
-			int fd_mani = open(client_mani, O_RDONLY);
+			int fd_mani = open(client_mani, O_RDWR);
 			if (fd_mani < 0) {
 				fprintf(stderr, "ERROR: Unable to open local \".Manifest\" file for \"%s\" project.\n", argv[2]);
 				free(client_mani);
@@ -302,17 +302,17 @@ int main (int argc, char **argv) {
 			struct stat st = {0};
 			if (fstat(fd_mani, &st) < 0) {
 				fprintf(stderr, "ERROR: fstat() failed.\n");
-				sending = "x";
-				sent = send(client_socket, sending, 2, 0);
+				char new_sending[2] = "x";
+				sent = send(client_socket, new_sending, 2, 0);
 				free(client_mani);
 				return EXIT_FAILURE;
 			}
 			char client_mani_input[st.st_size + 2];
 			read(fd_mani, client_mani_input, st.st_size); 
-			char *token_client, *token_server;
-			token_client = strsep(&client_mani_input, "\n");
-			token_server = strsep(&server_mani_input, "\n");
-			if (atoi(token_client) != atoi(token_server)) {
+			char *vers_token = strtok(client_mani_input, "\n");
+			int client_mani_vers = atoi(vers_token);			
+			vers_token = strtok(server_mani_input, "\n");
+			if (client_mani_vers != atoi(vers_token)) {
 				fprintf(stderr, "ERROR: Local \"%s\" project has not been updated.\n", token);
 				free(client_mani);
 				return EXIT_FAILURE;
@@ -328,18 +328,20 @@ int main (int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 			char version_buff[256];
-			int bytes_read = read(fd_com, version_buff, 256);
+			int bytes_read = read(fd_comm, version_buff, 256);
 			char *version = NULL;
 			if (bytes_read == 0) {
-				version = (char *)  malloc(2);
+				version = (char *) malloc(2);
 				version[0] = '0';
 				write(fd_comm, "0\n", 2);
 			} else {
-				char *vers_token = strtok(version_buff, "\n");
+				vers_token = strtok(version_buff, "\n");
 				version = (char *) malloc(strlen(vers_token) + 1);
 				snprintf(version, strlen(vers_token) + 1, "%s", vers_token);
+				fd_comm = open(path_comm, O_RDWR | O_TRUNC);
+				write(fd_comm, version, strlen(vers_token) + 1);
 			}
-			commit(fd_commit, client_mani_input, server_mani_input, fd_mani);
+			commit(fd_comm, client_mani_input, server_mani_input, fd_mani);
 		}
 /*		while(1) {
 			if (received == 0) {
