@@ -387,8 +387,9 @@ int main (int argc, char **argv) {
 /* = (char *) malloc((get_file_size(fd_comm) + 1)); */
 			bytes_read = read(fd_comm, comm_buff, get_file_size(fd_comm));
 			comm_buff[bytes_read] = '\0';
+			sent = send(client_socket, comm_buff, atoi(comm_size), 0);
 			printf("comm: %s\n", comm_buff);
-			size_t total = 0;
+			/*size_t total = 0;
 			while (total < atoi(comm_size)) {
 				ssize_t nb = send(client_socket, comm_buff + total, atoi(comm_size) - total, 0);
 				if (nb == -1) {
@@ -397,7 +398,7 @@ int main (int argc, char **argv) {
 				}
 				total += nb;
 			} 
-			printf("sent: %d\n", total); 
+			printf("sent: %d\n", total);  */
 //			sent = send(client_socket, comm_buff, strlen(comm_buff), 0);
 //			printf("sent: %d\n", sent);
 /*			char comm_buff[get_file_size(fd_comm) + 1];
