@@ -336,10 +336,26 @@ void *handler(void *args) {
 		sent = send(client_socket, contents, bytes_read, 0);
 		char buffer[BUFSIZ];
 		recv(client_socket, buffer, BUFSIZ, 0);
-        	file_size = atoi(buffer);
-		
+		int remaining = atoi(buffer);
+		recv(client_socket, buffer, BUFSIZ, 0);
+		int version = atoi(buffer);
+		char *comm_path = (char *) malloc(strlen(token) + 28 + sizeof(int));
+		snprintf(comm_path, strlen(token) + 28, ".server_directory/%s/.Commit%d", token, version);
+		int fd_comm_server = open(comm_path, O_CREAT | O_WRONLY, 0744);
+		if (fd_comm_server < 0) {
+			fprintf(stderr, "ERROR: Unable to create \".Commit%d\" file for \"%s\" project.\n", version, token);
+			free(comm_path);
+			char sending[2] = "d";
+			sent = send(client_socket, sending, 2, 0);
+			pthread_exit(NULL);
+		}
+		int len = 0;
+		while ((remaining > 0) && ((len = recv(client_socket, buffer, BUFSIZ, 0)) > 0)) {
+			write(fd_comm_server, buffer, len);
+			remaining -= len;
+		}
+		close(fd_comm_server);
 	}
-	
 	
 
 /*	while(1) {
