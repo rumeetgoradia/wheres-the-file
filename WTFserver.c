@@ -337,90 +337,30 @@ void *handler(void *args) {
 		char *buffer = (char *) malloc(BUFSIZ);
 		received = recv(client_socket, buffer, BUFSIZ, 0);
 		int remaining = atoi(buffer);
-		printf("remaining: %d\n", remaining);
-/*		received = recv(client_socket, buffer, BUFSIZ, 0);
-		int version = atoi(buffer);
-		printf("version: %d\n", version); */
 		received = recv(client_socket, buffer, BUFSIZ, 0);
-		printf("%s\n", buffer);
 		char temp[remaining + 1];
 		strcpy(temp, buffer);
 		char *vers_token = strtok(temp, "\n");
 		int version = atoi(vers_token);
-		//received = recv(client_socket, buffer, BUFSIZ, 0);
-		//printf("yolo? %s.\n", buffer);
 		char *comm_path = (char *) malloc(strlen(token) + 28 + sizeof(version));
 		snprintf(comm_path, strlen(token) + 28 + sizeof(version), ".server_directory/%s/.Commit%d", token, version);
 		int fd_comm_server = open(comm_path, O_CREAT | O_RDWR | O_APPEND, 0744);
-
-		int go_on = 1;
+		char sending[2] = "g";
 		if (fd_comm_server < 0) {
 			fprintf(stderr, "ERROR: Unable to create \".Commit%d\" file for \"%s\" project.\n", version, token);
 			free(comm_path);
-			go_on = 0;
-		}
-		free(comm_path);
-		if (go_on) {
-		//char comm_buff[BUFSIZ];
-/*		printf("receiving now%d\n", remaining);
-		received = recv(client_socket, buffer, remaining, 0);
-		printf("done %d\n", received); */
-//		comm_buff[received] = '\0';
-			write(fd_comm_server, buffer, strlen(buffer));
-			free(buffer);
-/*		size_t total = 0;
-		while (total < remaining) {
-			ssize_t nb = recv(client_socket, comm_buff, remaining - total, 0);
-			total += nb;
-			if (nb == -1) {
-				fprintf(stderr, "ERROR: Server recv() failed.\n");
-				break;
-			}
-			if (write(fd_comm_server, comm_buff, nb) == -1) {
-				fprintf(stderr, "Write to \".Commit%d\" failed.\n", version);
-			}
-		} 
-		printf("total: %d\n", total); */
-
-	/*	int len = 0;
-		printf("passed creation\n");
-		while ((remaining > 0) && ((len = recv(client_socket, buffer, BUFSIZ, 0)) > 0)) {
-			printf("%s\n", buffer);
-			write(fd_comm_server, buffer, len);
-			remaining -= len;
-		} */
-			
-		}
-		char sending[2];
-		if (go_on) {
-			sending[0] = 'g';
-		} else {
 			sending[0] = 'd';
+			sent = send(client_socket, sending, 2, 0);
+			free(buffer);
+			pthread_exit(NULL);
 		}
-		sending[1] = '\0';
 		sent = send(client_socket, sending, 2, 0);
-		printf("sent\n");
+		free(comm_path);
+		write(fd_comm_server, buffer, strlen(buffer));
+		free(buffer);
 		close(fd_comm_server);
 	}
 	
-
-/*	while(1) {
-		sprintf(sending, "Hello socket! It is %d.\n", (int) time(NULL));
-
-		sent = send(socket, sending, strlen(sending), 0);
-		if (sent < 0 && (errno == EPIPE || errno == ECONNRESET)) {
-			printf("Socket %d disconnected.\n", socket);
-			close(socket);
-			free(wa);
-			pthread_exit(NULL);
-		} else if (sent < 0) {
-			fprintf(stderr, "ERROR: Something went wrong while sending.\n");
-			free(wa);
-			pthread_exit(NULL);
-		}
-		sleep(5);
-	}
-*/	
 	pthread_exit(NULL);
 }
 
