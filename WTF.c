@@ -206,6 +206,14 @@ int main (int argc, char **argv) {
 				}
 			}
 		} else if (strcmp(argv[1], "destroy") == 0) {
+			if (argc < 3) {
+				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
+				return EXIT_FAILURE;
+			}
+			if (argc > 3) {
+				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name.\n");
+				return EXIT_FAILURE;
+			}
 			char sending[strlen(argv[2]) + 3];
 			snprintf(sending, strlen(argv[2]) + 3, "d:%s", argv[2]);
 			sent = send(client_socket, sending, strlen(sending), 0);
@@ -222,6 +230,14 @@ int main (int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 		} else if (strcmp(argv[1], "currentversion") == 0) {
+			if (argc < 3) {
+				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
+				return EXIT_FAILURE;
+			}
+			if (argc > 3) {
+				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name.\n");
+				return EXIT_FAILURE;
+			}
 			char sending[strlen(argv[2]) + 3];
 			snprintf(sending, strlen(argv[2]) + 3, "v:%s", argv[2]);
 			sent = send(client_socket, sending, strlen(sending), 0);
@@ -279,6 +295,14 @@ int main (int argc, char **argv) {
 				++count;
 			}
 		} else if (strcmp(argv[1], "commit")) {
+			if (argc < 3) {
+				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
+				return EXIT_FAILURE;
+			}
+			if (argc > 3) {
+				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name.\n");
+				return EXIT_FAILURE;
+			}
 			char sending[strlen(argv[2]) + 3];
 			snprintf(sending, strlen(argv[2]) + 3, "o:%s", argv[2]);
 			sent = send(client_socket, sending, strlen(sending), 0);
