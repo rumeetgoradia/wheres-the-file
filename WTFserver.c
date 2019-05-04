@@ -334,14 +334,21 @@ void *handler(void *args) {
 		int bytes_read = read(fd_mani, contents, st.st_size);
 		contents[bytes_read] = '\0';
 		sent = send(client_socket, contents, bytes_read, 0);
-		char *buffer = (char *) malloc(BUFSIZ);;
-		recv(client_socket, buffer, BUFSIZ, 0);
+		char *buffer = (char *) malloc(BUFSIZ);
+		received = recv(client_socket, buffer, BUFSIZ, 0);
 		int remaining = atoi(buffer);
 		printf("remaining: %d\n", remaining);
-		recv(client_socket, buffer, BUFSIZ, 0);
+/*		received = recv(client_socket, buffer, BUFSIZ, 0);
 		int version = atoi(buffer);
-		printf("version: %d\n", version);
-		free(buffer);
+		printf("version: %d\n", version); */
+		received = recv(client_socket, buffer, BUFSIZ, 0);
+		printf("%s\n", buffer);
+		char temp[remaining + 1];
+		strcpy(temp, buffer);
+		char *vers_token = strtok(temp, "\n");
+		int version = atoi(vers_token);
+		//received = recv(client_socket, buffer, BUFSIZ, 0);
+		//printf("yolo? %s.\n", buffer);
 		char *comm_path = (char *) malloc(strlen(token) + 28 + sizeof(version));
 		snprintf(comm_path, strlen(token) + 28 + sizeof(version), ".server_directory/%s/.Commit%d", token, version);
 		int fd_comm_server = open(comm_path, O_CREAT | O_RDWR | O_APPEND, 0744);
@@ -354,14 +361,13 @@ void *handler(void *args) {
 		}
 		free(comm_path);
 		if (go_on) {
-		printf("got here\n");
-		char comm_buff[remaining + 1];
-		printf("receiving now%d\n", remaining);
-		received = recv(client_socket, comm_buff, remaining, 0);
-		printf("done %d\n", received);
-		comm_buff[received] = '\0';
-		write(fd_comm_server, comm_buff, received);
-		printf("wrote\n");
+		//char comm_buff[BUFSIZ];
+/*		printf("receiving now%d\n", remaining);
+		received = recv(client_socket, buffer, remaining, 0);
+		printf("done %d\n", received); */
+//		comm_buff[received] = '\0';
+			write(fd_comm_server, buffer, strlen(buffer));
+			free(buffer);
 /*		size_t total = 0;
 		while (total < remaining) {
 			ssize_t nb = recv(client_socket, comm_buff, remaining - total, 0);
@@ -383,14 +389,17 @@ void *handler(void *args) {
 			write(fd_comm_server, buffer, len);
 			remaining -= len;
 		} */
+			
 		}
+		char sending[2];
 		if (go_on) {
-			char sending[2] = "g";
-			sent = send(client_socket, sending, 2, 0);
+			sending[0] = 'g';
 		} else {
-			char sending[2] = "d";
-			sent = send(client_socket, sending, 2, 0);
+			sending[0] = 'd';
 		}
+		sending[1] = '\0';
+		sent = send(client_socket, sending, 2, 0);
+		printf("sent\n");
 		close(fd_comm_server);
 	}
 	

@@ -372,6 +372,7 @@ int main (int argc, char **argv) {
 				snprintf(version, sizeof(vers) + 2, "%d\n", vers);
 				fd_comm = open(path_comm, O_RDWR | O_TRUNC | O_APPEND);
 				write(fd_comm, version, strlen(version));
+				free(version);
 			}
 			if (commit(fd_comm, client_mani_input, server_mani_input, fd_mani) == -1) {
 				fprintf(stderr, "ERROR: Local \"%s\" project is not up-to-date with server.\n", argv[2]);
@@ -380,8 +381,11 @@ int main (int argc, char **argv) {
 			char comm_size[256];
 			snprintf(comm_size, 256, "%d", get_file_size(fd_comm));
 			sent = send(client_socket, comm_size, strlen(comm_size), 0);
-			sent = send(client_socket, version, strlen(version), 0);
-			free(version);
+			/*sent = send(client_socket, version, strlen(version) - 1, 0);
+			free(version); */
+/*			char test[33];
+			snprintf(test, 33, "yolo");
+			sent = send(client_socket, test, 33, 0); */
 			lseek(fd_comm, 0, SEEK_SET);
 			char comm_buff[get_file_size(fd_comm) + 1];
 /* = (char *) malloc((get_file_size(fd_comm) + 1)); */
@@ -412,14 +416,20 @@ int main (int argc, char **argv) {
 			while ((remaining > 0) && ((sent = sendfile(client_socket, fd_comm, &offset, BUFSIZ)) > 0)) {
 				remaining -= sent;
 			} */
-			char final[5];
-			recv(client_socket, final, 5, 0);
-			if (final[0] == 'd') {
+			char final[3];
+			received = recv(client_socket, final, 3, 0);
+			printf("%c\n", final[0]);
+			printf("%d\n", received);
+/*			if (iscntrl(server_mani_input[0])) {
+				++server_mani_input;
+			}
+			printf("%c\n", server_mani_input[0]);
+			if (server_mani_input[0] == 'd') {
 				fprintf(stderr, "ERROR: Server failed to create its own \".Commit\" file for \"%s\" project.\n", argv[2]);
 				return EXIT_FAILURE;
-			} else if (final[0] == 'g') {
+			} else if (server_mani_input[0] == 'g') {
 				printf("Commit successful!\n");
-			}	
+			}	*/
 			close(fd_comm);	
 		}
 /*		while(1) {
