@@ -359,8 +359,80 @@ void *handler(void *args) {
 		write(fd_comm_server, buffer, strlen(buffer));
 		free(buffer);
 		close(fd_comm_server);
+	} else if (token[0] == 'p') {
+		token = strtok(NULL, ":");
+		char project[strlen(token) + 1];
+		strcpy(project, token);
+		char *to_send = (char *) malloc(2);
+		if (check_dir(project) == -1) {
+			snprintf(to_send, 2, "b");
+		} else {
+			snprintf(to_send, 2, "g");
+		}
+		sent = send(client_socket, to_send, 2, 0);
+		char *recving = (char *) malloc(256);
+		received = recv(client_socket, recving, 256, 0);
+		int size = atoi(recving);
+		free (recving);
+		recving = (char *) malloc(size + 1);
+		received = recv(client_socket, recving, size, 0);
+		printf("recving: %s\n", recving);
+		while (received < size) {
+			printf("entering while\n");
+			int bytes_recv = recv(client_socket, recving + received, size, 0);
+			received += bytes_recv;
+		}
+//		printf("%s\n", recving);
+		int comm_check = push_check(project, recving);
+		printf("comm check: %d\n", comm_check);
+		if (comm_check == -1) {
+			free(recving);
+			snprintf(to_send, 2, "x");
+			sent = send(client_socket, to_send, 2, 0);
+			free(to_send);
+			pthread_exit(NULL);
+		} else if (comm_check == 1) {
+			free(recving);
+			fprintf(stderr, "ERROR: Could not find matching .Commit for project \"%s\".\n", project);
+			snprintf(to_send, 2, "b");
+			sent = send(client_socket, to_send, 2, 0);
+			free(to_send);
+			pthread_exit(NULL);
+		}
+		char mani_path[strlen(project) + 31];
+		snprintf(mani_path, strlen(project) + 31, ".server_directory/%s/.Manifest", project);
+		int fd_mani = open(mani_path, O_RDWR);
+		if (fd_mani < 0) {
+			free(recving);
+			snprintf(to_send, 2, "x");
+			sent = send(client_socket, to_send, 2, 0);
+			free(to_send);
+			fprintf(stderr, "ERROR: Failed to open .Manifest for project \"%s\".\n", project);
+			pthread_exit(NULL);
+		}
+		int mani_size = get_file_size(fd_mani);
+		if (mani_size < 0) {
+			free(recving);
+			snprintf(to_send, 2, "x");
+			sent = send(client_socket, to_send, 2, 0);
+			free(to_send);
+			fprintf(stderr, "ERROR: Failed to get .Manifest's size for project \"%s\".\n", project);
+			pthread_exit(NULL);
+		}
+		char mani_buff[mani_size + 1];
+		int bytes_read = read(fd_mani, mani_buff, size);
+		char *mani_token = strtok(mani_buff, "\n");
+		int version = atoi(mani_token);
+		char vers_path[strlen(project) + 29 + sizeof(version)];
+		snprintf(vers_path, strlen(project) + 29 + sizeof(version), ".server_directory/%s/version%d", project, version);
+		if (version == 0) {
+			mkdir(vers_path);
+		} else {
+			char new_vers_path[strlen(project) + 29 + sizeof(version + 1)];
+			snprintf(vers_path, strlen(project) + 29 + sizeof(version + 1), ".server_directory/%s/version%d", project, version + 1);
+			int dir_copy_check = dir_copy(vers_path, new_vers_path);
+		}
 	}
-	
 	pthread_exit(NULL);
 }
 

@@ -248,6 +248,60 @@ int commit(int fd_comm, char *client_mani, char *server_mani, int fd_mani) {
 		}
 		bytes += strlen(token) + 1;
 	}
+	return 1;	
+}
+
+int delete_commits(char *proj_path, char *name) {
+	DIR *dir;
+	if (!(dir = opendir(proj_path))) {
+		fprintf(stderr, "ERROR: Could not open \"%s\" on server.\n", proj_path);
+		return -1;
+	}
+	struct dirent *de;
+	while ((de = readdir(dir)) != NULL) {
+		if (strstr(de->d_name, ".Commit") != NULL && strcmp(de->d_name, name) != 0) {
+			char *comm_path = (char *) malloc(strlen(proj_path) + strlen(de->d_name) + 1);
+			snprintf(comm_path, strlen(proj_path) + strlen(de->d_name) + 1, "%s%s", proj_path, de->d_name);
+			if (de->d_type != DT_DIR) {
+				remove(comm_path);
+			}
+			free(comm_path);
+		}
+	}
+	return 0;
+}
+
+int push_check(char *project, char *comm_input) {
+	char path[20 + strlen(project)];
+	snprintf(path, strlen(project) + 20, ".server_directory/%s/", project);
+	DIR *dir;
+	if (!(dir = opendir(path))) {
+		fprintf(stderr, "ERROR: Could not open project \"%s\" on server.\n", project);
+		return -1;
+	}
+	struct dirent *de;
+	while ((de = readdir(dir)) != NULL) {
+		if (strstr(de->d_name, ".Commit") != NULL) {
+			char *comm_path = (char *) malloc(strlen(path) + strlen(de->d_name) + 1);
+			snprintf(comm_path, strlen(path) + strlen(de->d_name) + 1, "%s%s", path, de->d_name);
+			int fd_comm = open(comm_path, O_RDONLY);
+			if (fd_comm < 0) {
+				free(comm_path);
+				continue;
+			}
+			int size = get_file_size(fd_comm);
+			if (size <= 0) {
+				free(comm_path);
+				continue;
+			}
+			char input[size + 1];
+			int bytes_read = read(fd_comm, input, size);
+			if (strcmp(input, comm_input) == 0) {
+				free(comm_path);
+				return delete_commits(path, de->d_name);
+			}
+			free(comm_path);
+		}
+	}
 	return 1;
-		
 }

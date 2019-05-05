@@ -392,8 +392,67 @@ int main (int argc, char **argv) {
 				return EXIT_FAILURE;
 			} else if (recv_buff[0] == 'g') {
 				printf("Commit successful!\n");
+			} else {
+				printf("Commit successful!\n");
 			}
 			close(fd_comm);	
+		} else if (strcmp(argv[1], "push") == 0) {
+			/* ARG CHECK */
+			int sending_size = 3 + strlen(argv[2]);
+			char *to_send = (char *) malloc(sending_size);
+			snprintf(to_send, sending_size, "p:%s", argv[2]);
+/*			int sending_size = 6 + strlen(argv[2]) + sizeof(size) + bytes_read;
+			char to_send[sending_size];
+			snprintf(to_send, sending_size, "p:%s:%d:%s", arg[2], bytes_read, comm_input); */
+			sent = send(client_socket, to_send, sending_size, 0);
+			while (sent < sending_size) {
+				int bytes_sent  = send(client_socket, to_send + sent, sending_size, 0);
+				sent += bytes_sent;
+			}
+			char *recving = (char *) malloc(2);
+			received = recv(client_socket, recving, 2, 0);
+			if (recving[0] == 'b') {
+				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
+				return EXIT_FAILURE;
+			}
+			char comm_path[strlen(argv[2]) + 9];
+			snprintf(comm_path, strlen(argv[2]) + 9, "%s/.Commit", argv[2]);
+			int fd_comm = open(comm_path, O_RDONLY);
+			if (fd_comm < 0) {
+				fprintf(stderr, "ERROR: Failed to open local .Commit for \"%s\" project.\n", argv[2]);
+				return EXIT_FAILURE;
+			}
+			int size = get_file_size(fd_comm);
+			if (size == -1) {
+				fprintf(stderr, "ERROR: Failed to get size of local .Commit for \"%s\" project.\n", argv[2]);
+				return EXIT_FAILURE;
+			}
+			/* Reading .Commit's input */
+			char comm_input[size + 1];
+			int bytes_read = read(fd_comm, comm_input, size);
+			free(to_send);
+			sending_size = sizeof(bytes_read);
+			to_send = (char *) malloc(sending_size);
+			snprintf(to_send, sending_size, "%d", bytes_read);
+			sent = send(client_socket, to_send, sending_size, 0);
+			sending_size = bytes_read;
+			free(to_send);
+			to_send = (char *) malloc(sending_size);
+			snprintf(to_send, sending_size, "%s", comm_input);
+			sent = send(client_socket, to_send, sending_size, 0);
+			printf("sent: %s\n", to_send);
+			received = recv(client_socket, recving, 2, 0);
+			if (recving[0] == 'x') {
+				fprintf(stderr, "ERROR: Server failed during .Commit lookup for project \"%s\".\n", argv[2]);
+				remove(comm_path);
+				return EXIT_FAILURE;
+			} else if (recving[0] == 'b') {
+				fprintf(stderr, "ERROR: Matching .Commit could not be found on server's copy of \"%s\".\n", argv[2]);
+				remove(comm_path);
+				return EXIT_FAILURE;
+			}
+			
+			
 		}
 /*		while(1) {
 			if (received == 0) {
