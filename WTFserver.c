@@ -289,13 +289,15 @@ void *handler(void *args) {
 			remaining -= sent;
 			offset += sent;
 		} */
-		printf("Sent \".Manifest\" file for \"%s\" project to client.\n", token);
+		printf("Sent .Manifest file for \"%s\" project to client.\n", token);
 		free(mani_path);
 		pthread_exit(NULL);
 	} else if (token[0] == 'o') {
 		token = strtok(NULL, ":");
+		printf("token: %s\n", token);
 		char *proj_path = (char *) malloc(strlen(token) + 22);
 		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
+		printf("proj_path: %s\n", proj_path);
 		if (check_dir(proj_path) == -1) {
 			char sending[2] = "b";
 			sent = send(client_socket, sending, 2, 0);
@@ -306,27 +308,24 @@ void *handler(void *args) {
 		free(proj_path);
 		char *mani_path = (char *) malloc(strlen(token) + 31);
 		snprintf(mani_path, strlen(token) + 31, ".server_directory/%s/.Manifest", token);
+		printf("mani_path: %s\n", mani_path);
+		char *to_send = (char *) malloc(2);
 		int fd_mani = open(mani_path, O_RDONLY);
-		if (fd_mani < 0) {
+		int mani_size = get_file_size(fd_mani);
+		if (fd_mani < 0 || mani_size < 0) {
 			fprintf(stderr, "ERROR: Unable to open \".Manifest\" file for \"%s\" project.\n", token);
 			free(mani_path);
 			free(proj_path);
-			char sending[2] = "x";
-			sent = send(client_socket, sending, 2, 0);
+			snprintf(to_send, 2, "x");
+			sent = send(client_socket, to_send, 2, 0);
 			pthread_exit(NULL);	
 		}
-		int mani_size = get_file_size(fd_mani);
-		if (mani_size < 0) {
-			fprintf(stderr, "ERROR: fstat() failed.\n");
-			char sending[2] = "x";
-			sent = send(client_socket, sending, 2, 0);
-			free(mani_path);
-			pthread_exit(NULL);
-		}
 		int sending_size = sizeof(mani_size);
-		char *to_send = (char *) malloc(sending_size);
+		free(to_send);
+		to_send = (char *) malloc(sending_size + 1);
 		snprintf(to_send, sending_size, "%d", mani_size);
-		sent = send(client_socket, file_size, sending_size, 0);	
+		sent = send(client_socket, to_send, sending_size, 0);	
+		printf("Sent %d bytes: %s\n", sent, to_send);
 /*		if (sent < 0) {
 			fprintf(stderr, "ERROR: Could not send size of \"%s\".\n", mani_path);
 			free(mani_path);
@@ -336,27 +335,28 @@ void *handler(void *args) {
 		} */
 		free(to_send);
 		sending_size = mani_size;
-		to_send = (char *) malloc(sending_size);
+		to_send = (char *) malloc(sending_size + 1);
 		int bytes_read = read(fd_mani, to_send, sending_size);
-		sent = send(client_socket, to_send, sending_size, 0);
-		while (sent < sending_size) {
-			int bytes_sent = send(client_socket, to_send + sent, sending_size, 0);
+		sent = send(client_socket, to_send, bytes_read, 0);
+	/*	while (sent < bytes_read) {
+			int bytes_sent = send(client_socket, to_send + sent, bytes_read, 0);
 			sent += bytes_sent;
-		}
-		char mani_input[bytes_read];
+		} */
+		printf("passed while\n");
+		char mani_input[bytes_read + 1];
 		strcpy(mani_input, to_send);
 		/* Get .Commit data */
+		char *recving = (char *) malloc(256);
+		received = recv(client_socket, recving, 255, 0);
+		int comm_size = atoi(recving);
 		free(recving);
-		recving = (char *) malloc(256);
-		received = recv(client_socket, recving, 256, 0);
-		int comm_size = atoi(recv);
-		free(recving);
-		recving = (char *) malloc(comm_size);
+		recving = (char *) malloc(comm_size + 1);
 		received = recv(client_socket, recving, comm_size, 0);
 //		char temp[remaining + 1];
-		strcpy(temp, buffer);
+//		strcpy(temp, buffer);
 		srand(time(0));
 		int version = rand() % 10000;
+		printf("got everything\n");
 		char *comm_path = (char *) malloc(strlen(token) + 28 + sizeof(version));
 		snprintf(comm_path, strlen(token) + 28 + sizeof(version), ".server_directory/%s/.Commit%d", token, version);
 		int fd_comm_server = open(comm_path, O_CREAT | O_RDWR | O_APPEND, 0744);

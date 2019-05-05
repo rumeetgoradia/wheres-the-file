@@ -170,9 +170,13 @@ int commit_check(int version, char *path, char *hash, char *other_mani) {
 	int count = 0;
 	int hash_check = 0;
 	int vers = 0;
+	printf("about to enter while for ocmmit chekc\n");
 	while (token != NULL) {
 		token = strtok(NULL, "\t\n");
 		++count;
+		if (token == NULL) {
+			break;
+		}
 		if (count % 3 == 1) {
 			vers = atoi(token);
 		} else if (count % 3 == 2) {
@@ -196,7 +200,8 @@ int commit_check(int version, char *path, char *hash, char *other_mani) {
 } 
 
 int commit(int fd_comm, char *client_mani, char *server_mani) {
-	char temp[strlen(client_mani) + 1];
+	int len = strlen(client_mani);
+	char temp[len + 1];
 	strcpy(temp, client_mani);
 	char *token = strtok(temp, "\n");
 	int count = 0;
@@ -206,17 +211,19 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 	char *path = NULL;
 	int bytes = 2;
 	while (token != NULL) {
+		printf("past\n");
 		token = strtok(NULL, "\t\n");
 		++count;
 		if (token == NULL) {
-			if (bytes < strlen(client_mani) - 1) {
+			if (bytes < len - 1) {
+				printf("entered this shit, bytes = %d, len = %d\n", bytes, len);
 				strcpy(temp, client_mani);
-				token = strtok(&(temp[bytes - 1]), "\t\n"); 
+				token = strtok(&(temp[bytes - 1]), "\t\n"); 	
 			} else {
 				break;
 			}
 		}
-
+		printf("token: %s, count: %d\n", token, count);
 		if (count % 3 == 1) {
 			version = atoi(token);
 			++version;
@@ -238,7 +245,9 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 		} else {
 			int token_equals_hash = strcmp(token, hashed);
 			int token_equals_dashes = strcmp(token, "----------------------------------------------------------------");
+			printf("about to comm check\n");
 			int comm_check = commit_check(version - 1, path, token, server_mani);
+			printf("passed comm check\n");
 			if (comm_check == -1) {
 				return -1;
 			}
@@ -249,6 +258,7 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 			} else if (token_equals_hash != 0 && comm_check != 2) {
 				write(fd_comm, "M\t", 2);
 			} else {
+				bytes += strlen(token) + 1;
 				continue;
 			}
 			char *version_string = (char *) malloc(sizeof(version) + 1);

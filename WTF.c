@@ -301,12 +301,14 @@ int main (int argc, char **argv) {
 				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name.\n");
 				return EXIT_FAILURE;
 			}
-			int sending_size = strlen(argv[2] + 3);
+			int sending_size = strlen(argv[2]) + 3;
 			char *to_send = (char *) malloc(sending_size);
 			snprintf(to_send, sending_size, "o:%s", argv[2]);
 			sent = send(client_socket, to_send, sending_size, 0);
-			char *recving = (char *) malloc(256);
-			received = recv(client_socket, recving, 255, 0);
+			printf("got before first recv\n");
+			char *recving = (char *) malloc(sizeof(int));
+			received = recv(client_socket, recving, sizeof(int), 0);	
+			printf("received: %d -> %s\n", received, recving);
 			if (recving[0] == 'x') {
 				fprintf(stderr, "ERROR: Failed to get server's .Manifest for project \"%s\" from server.\n", argv[2]);
 				free(to_send);
@@ -320,11 +322,19 @@ int main (int argc, char **argv) {
 			}
 			int server_mani_size = atoi(recving);
 			free(recving);
+			printf("about to start recving again\n");
 			recving = (char *) malloc(server_mani_size + 1);
-			received = recv(client_socket, recving, server_mani_size + 1, 0);
+			printf("gonna recv!\n");
+			received = recv(client_socket, recving, server_mani_size, 0);
+/*			while (received < server_mani_size) {
+				int bytes_recv = recv(client_socket, recving + bytes_recv, server_mani_size,0);
+				received += bytes_recv;
+			} */
+			printf("received: %s\n", recving);
 			char server_mani_input[received + 1];
 			strcpy(server_mani_input, recving);
 			server_mani_input[received] = '\0';
+			printf("got here\n");
 /*			if (iscntrl(server_mani_input[0])) {
 				server_mani_input = &(server_mani_input[1]);
 			} */
@@ -332,6 +342,7 @@ int main (int argc, char **argv) {
 			snprintf(client_mani, strlen(argv[2]) + 11, "%s/.Manifest", argv[2]);
 			int fd_mani = open(client_mani, O_RDWR);
 			int client_mani_size = get_file_size(fd_mani);
+			printf("got mani size\n");
 			if (fd_mani < 0 || client_mani_size < 0) {
 				fprintf(stderr, "ERROR: Unable to open local .Manifest for project \"%s\".\n", argv[2]);
 				free(to_send);
@@ -343,7 +354,6 @@ int main (int argc, char **argv) {
 				free(client_mani);
 				return EXIT_FAILURE;
 			}
-			
 			char client_mani_input[client_mani_size];
 			read(fd_mani, client_mani_input, client_mani_size); 
 			char get_version[256];
@@ -351,6 +361,7 @@ int main (int argc, char **argv) {
 			char *vers_token = strtok(get_version, "\n");
 			int client_mani_vers = atoi(vers_token);			
 			vers_token = strtok(server_mani_input, "\n");
+			printf("got past version check\n");
 			if (client_mani_vers != atoi(vers_token)) {
 				fprintf(stderr, "ERROR: Local \"%s\" project has not been updated.\n", argv[2]);
 				free(to_send);
@@ -364,8 +375,9 @@ int main (int argc, char **argv) {
 			}
 
 			/* Setup .Commit file path */
-			char *path_comm = (char *) malloc(strlen(argv[2]) + 9);
-			snprintf(path_comm, strlen(argv[2]) + 11, "%s/.Commit", argv[2]);
+			char *path_comm = (char *) malloc(strlen(argv[2]) + 10);
+			snprintf(path_comm, strlen(argv[2]) + 10, "%s/.Commit", argv[2]);
+			printf("commit path: %s\n", path_comm);
 			int fd_comm = open(path_comm, O_RDWR | O_CREAT | O_TRUNC, 0744);
 			int comm_size = get_file_size(fd_comm);
 			if (fd_comm < 0 || comm_size < 0) {
@@ -397,6 +409,7 @@ int main (int argc, char **argv) {
 				write(fd_comm, version, strlen(version));
 				free(version);
 			} */
+			printf("about to commit\n");
 			if (commit(fd_comm, client_mani_input, server_mani_input, fd_mani) == -1) {
 				fprintf(stderr, "ERROR: Local \"%s\" project is not up-to-date with server.\n", argv[2]);
 				free(to_send);
@@ -408,6 +421,7 @@ int main (int argc, char **argv) {
                                 free(client_mani);
 				return EXIT_FAILURE;
 			}
+			printf("past commit\n");
 			free(to_send);
 			sending_size = sizeof(comm_size);
 			to_send = (char *) malloc(sending_size);
