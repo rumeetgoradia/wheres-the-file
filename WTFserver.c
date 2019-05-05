@@ -315,53 +315,69 @@ void *handler(void *args) {
 			sent = send(client_socket, sending, 2, 0);
 			pthread_exit(NULL);	
 		}
-		struct stat st = {0};
-		if (fstat(fd_mani, &st) < 0) {
+		int mani_size = get_file_size(fd_mani);
+		if (mani_size < 0) {
 			fprintf(stderr, "ERROR: fstat() failed.\n");
 			char sending[2] = "x";
 			sent = send(client_socket, sending, 2, 0);
 			free(mani_path);
 			pthread_exit(NULL);
-
 		}
-		char file_size[256];
-		snprintf(file_size, 256, "%d", st.st_size);
-		sent = send(client_socket, file_size, 256, 0);	
-		if (sent < 0) {
+		int sending_size = sizeof(mani_size);
+		char *to_send = (char *) malloc(sending_size);
+		snprintf(to_send, sending_size, "%d", mani_size);
+		sent = send(client_socket, file_size, sending_size, 0);	
+/*		if (sent < 0) {
 			fprintf(stderr, "ERROR: Could not send size of \"%s\".\n", mani_path);
 			free(mani_path);
 			char sending[2] = "x";
 			sent = send(client_socket, sending, 2, 0);
 			pthread_exit(NULL);	
+		} */
+		free(to_send);
+		sending_size = mani_size;
+		to_send = (char *) malloc(sending_size);
+		int bytes_read = read(fd_mani, to_send, sending_size);
+		sent = send(client_socket, to_send, sending_size, 0);
+		while (sent < sending_size) {
+			int bytes_sent = send(client_socket, to_send + sent, sending_size, 0);
+			sent += bytes_sent;
 		}
-		char contents[st.st_size + 1];
-		int bytes_read = read(fd_mani, contents, st.st_size);
-		contents[bytes_read] = '\0';
-		sent = send(client_socket, contents, bytes_read, 0);
-		char *buffer = (char *) malloc(BUFSIZ);
-		received = recv(client_socket, buffer, BUFSIZ, 0);
-		int remaining = atoi(buffer);
-		received = recv(client_socket, buffer, BUFSIZ, 0);
-		char temp[remaining + 1];
+		char mani_input[bytes_read];
+		strcpy(mani_input, to_send);
+		/* Get .Commit data */
+		free(recving);
+		recving = (char *) malloc(256);
+		received = recv(client_socket, recving, 256, 0);
+		int comm_size = atoi(recv);
+		free(recving);
+		recving = (char *) malloc(comm_size);
+		received = recv(client_socket, recving, comm_size, 0);
+//		char temp[remaining + 1];
 		strcpy(temp, buffer);
 		srand(time(0));
 		int version = rand() % 10000;
 		char *comm_path = (char *) malloc(strlen(token) + 28 + sizeof(version));
 		snprintf(comm_path, strlen(token) + 28 + sizeof(version), ".server_directory/%s/.Commit%d", token, version);
 		int fd_comm_server = open(comm_path, O_CREAT | O_RDWR | O_APPEND, 0744);
-		char sending[2] = "g";
+		free(to_send);
+		to_send = (char *) malloc(2);
 		if (fd_comm_server < 0) {
-			fprintf(stderr, "ERROR: Unable to create \".Commit%d\" file for \"%s\" project.\n", version, token);
+			fprintf(stderr, "ERROR: Unable to create .Commit%d for \"%s\" project.\n", version, token);
 			free(comm_path);
-			sending[0] = 'd';
-			sent = send(client_socket, sending, 2, 0);
-			free(buffer);
+			snprintf(to_send, 2, "b");
+			sent = send(client_socket, to_send, 2, 0);
+			free(recving);
+			free(to_send);
+			close(fd_comm_server);
 			pthread_exit(NULL);
 		}
-		sent = send(client_socket, sending, 2, 0);
 		free(comm_path);
-		write(fd_comm_server, buffer, strlen(buffer));
-		free(buffer);
+		write(fd_comm_server, recving, received);
+		snprintf(to_send, 2, "g");
+		sent = send(client_socket, to_send, 2, 0);
+		free(recving);
+		free(to_send);
 		close(fd_comm_server);
 	} else if (token[0] == 'p') {
 		token = strtok(NULL, ":");
@@ -462,14 +478,19 @@ void *handler(void *args) {
 			remove_dir(new_vers_path);
 			fprintf(stderr, "ERROR: Failed to instantiate new version of project \"%s\".\n", project);
 			pthread_exit(NULL);
-		}
+		}	
+		char temp[strlen(comm_input) + 1];
+		strcpy(temp, comm_input);
+		int comm_length = strlen(comm_input);
 		char *comm_token = strtok(comm_input, "\t\n");
 		int count = 1;
 		int remove_check = 0;
 		int update_check = 0;
 /*		int file_vers = 0; */
 		char *path;
+		int bytes = strlen(comm_token) + 1;
 		while (comm_token != NULL) {
+			printf("comm_token: %s\n", comm_token);
 			if (count % 4 == 1) {
 				if (comm_token[0] == 'R') {
 					remove_check = 1;
@@ -490,6 +511,14 @@ void *handler(void *args) {
 					free(recving);
 					recving = (char *) malloc(256);
 					received = recv(client_socket, recving, 256, 0);
+					if (recving[0] == 'x') {
+						fprintf(stderr, "ERROR: Client could not send contents of file.\n");
+						fd_mani = open(mani_path, O_WRONLY | O_TRUNC);
+						write(fd_mani, mani_jic, mani_size);
+						remove_dir(new_vers_path);
+						free(path);
+						pthread_exit(NULL);
+					}
 					recving[received] = '\0';
 					int new_size = atoi(recving);
 					free(recving);
@@ -538,9 +567,19 @@ void *handler(void *args) {
 					remove_check = 0;
 				}
 			}
+			bytes += strlen(comm_token) + 1;
 			comm_token = strtok(NULL, "\t\n");
 			++count;
+			if (token == NULL) {
+				if (bytes < comm_length - 1) {
+					strcpy(temp, comm_input);
+					comm_token = strtok(&(temp[bytes - 1]), "\t\n");
+				} else {
+					break;
+				}
+			}
 		}
+		printf("finished\n");
 		snprintf(to_send, 2, "g");
 		sent = send(client_socket, to_send, 2, 0);
 	}

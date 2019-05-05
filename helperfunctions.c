@@ -163,39 +163,39 @@ int get_file_size(int fd) {
 	return st.st_size;
 }
 
-int commit_check(char *path, char *hash, int given_version, char *other_mani, int dashes) {
-	char *token = strtok(other_mani, "\n");
+int commit_check(int version, char *path, char *hash, char *other_mani) {
+	char mani_input[strlen(other_mani)];
+	strcpy(mani_input, other_mani);
+	char *token = strtok(mani_input, "\t\n");
 	int count = 0;
-	int check = 0;
-	int version = 0;
+	int hash_check = 0;
+	int vers = 0;
 	while (token != NULL) {
-		token = strtok(NULL, "\n\t");
-		if (token == NULL) {
-			break;
-		}
+		token = strtok(NULL, "\t\n");
 		++count;
-		if (check == 1) {
-			if (strcmp(token, hash) != 0 && version >= given_version) {
-				return -1;
-			} else if ((strcmp(token, hash) != 0 && !dashes) || (strcmp(token, "----------------------------------------------------------------") != 0 && dashes)) {
-				return 2;
-			}
-			break;
-		}
 		if (count % 3 == 1) {
-			version = atoi(token);
+			vers = atoi(token);
 		} else if (count % 3 == 2) {
-			if (strcmp(token, path) == 0) {
-				check = 1;
+			if (strcmp(path, token) == 0) {
+				hash_check = 1;
+			}
+		} else if (count % 3 == 0) {
+			if (hash_check) {
+				int check = strcmp(hash, token);
+				if (check != 0 && vers >= version) {
+					return -1;
+				} else if (check != 0) {
+					return 1;
+				} else if (check == 0) {
+					return 0;
+				}
 			}
 		}
-			
 	}
-	return 0;
-}
+	return 2;
+} 
 
-int commit(int fd_comm, char *client_mani, char *server_mani, int fd_mani) {
-
+int commit(int fd_comm, char *client_mani, char *server_mani) {
 	char temp[strlen(client_mani) + 1];
 	strcpy(temp, client_mani);
 	char *token = strtok(temp, "\n");
@@ -223,6 +223,9 @@ int commit(int fd_comm, char *client_mani, char *server_mani, int fd_mani) {
 		} else if (count % 3 == 2) {
 			int fd = open(token, O_RDONLY);
 			int size = get_file_size(fd);
+			if (fd < 0 || size < 0) {
+				return -1;
+			}
 			char buff[size + 1];
 			read(fd, buff, size);
 			SHA256(buff, strlen(buff), hash);
@@ -233,26 +236,20 @@ int commit(int fd_comm, char *client_mani, char *server_mani, int fd_mani) {
 			path = malloc(strlen(token) + 1);
 			snprintf(path, strlen(token) + 1, "%s", token);
 		} else {
-
-			int check = strcmp(token, hashed);
-			int dash_check = strcmp(token, "----------------------------------------------------------------");
-			int comm_check = commit_check(path, hash, version, server_mani, dash_check);
-
-			if (dash_check != 0) {
-				if (comm_check == 2) {
-					write(fd_comm, "U\t", 2);
-				} else if (comm_check == 0) {
-					write(fd_comm, "A\t", 2);
-				}
-			}
-			if ((check != 0 || dash_check == 0) && comm_check == -1) {
+			int token_equals_hash = strcmp(token, hashed);
+			int token_equals_dashes = strcmp(token, "----------------------------------------------------------------");
+			int comm_check = commit_check(version - 1, path, token, server_mani);
+			if (comm_check == -1) {
 				return -1;
 			}
-			if ((check == 0 && comm_check == -1) || (dash_check == 0 && comm_check == 0)) {
-				continue;
-			}
-			if (dash_check == 0 && comm_check == 2) {
+			if (token_equals_dashes == 0 && comm_check != 2) {
 				write(fd_comm, "D\t", 2);
+			} else if (token_equals_hash != 0 && comm_check == 2) {
+				write(fd_comm, "A\t", 2);
+			} else if (token_equals_hash != 0 && comm_check != 2) {
+				write(fd_comm, "M\t", 2);
+			} else {
+				continue;
 			}
 			char *version_string = (char *) malloc(sizeof(version) + 1);
 			snprintf(version_string, sizeof(version) + 1, "%d", version);
