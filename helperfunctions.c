@@ -9,7 +9,6 @@
 #include <math.h>
 #include <openssl/sha.h>
 
-
 unsigned int tokenize(char *path, char *input, char *hash, int flag, int *version) {
 	if (input == NULL) {
 		return 0;	
@@ -25,14 +24,15 @@ unsigned int tokenize(char *path, char *input, char *hash, int flag, int *versio
 	prev_bytes = strlen(token) + 1;
 	byte_count += prev_bytes;
 	int count = 0;
+
 	while (token != NULL) {
 		token = strtok(NULL, "\n\t");
 		++count;
-		if (count % 3 == 1 && version != NULL) {
-			*version = atoi(token);
-		}
 		if (token == NULL) {
 			break;
+		}
+		if (count % 3 == 1 && version != NULL) {
+			*version = atoi(token);
 		}
 		if (check == 1) {
 			if (strcmp(token, hash) == 0) {
@@ -66,8 +66,10 @@ int add(int fd_manifest, char *hashcode, char *path, char *input, int flag) {
 	if (move == -2) {
 		return -2;
 	}
+
 /*	char buff[move];
 	read(fd_manifest, buff, move); */
+
 	lseek(fd_manifest, move, SEEK_SET);
 	if (move == strlen(input)) {
 		write(fd_manifest, "0\t", 2);
