@@ -4,3 +4,4 @@ int check_dir(char *path);
 int remove_dir(char *path);
 int commit(int fd_comm, char *client_mani, char *server_mani, int fd_mani);
 int push_check(char *project, char *comm_input);
+int dir_copy(char *src, char *dest);

@@ -187,6 +187,10 @@ void *handler(void *args) {
 		if (stat(new_proj_path, &st) == -1) { */
 		if (check_dir(new_proj_path) == -1) {
 			mkdir(new_proj_path, 0744);
+			char *new_vers_path = (char *) malloc(strlen(new_proj_path + 9);
+			snprintf(new_mani_path, strlen(new_proj_path) + 9, "%sversion0", new_proj_path);
+			mkdir(new_vers_path, 0744);
+			free(new_vers_path);
 			char *new_mani_path = (char *) malloc(strlen(new_proj_path) + 11);
 			snprintf(new_mani_path, strlen(new_proj_path) + 11, "%s.Manifest", new_proj_path);
 			int fd_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0744);
@@ -382,8 +386,12 @@ void *handler(void *args) {
 			int bytes_recv = recv(client_socket, recving + received, size, 0);
 			received += bytes_recv;
 		}
+		recving[received] = '\0';
 //		printf("%s\n", recving);
-		int comm_check = push_check(project, recving);
+		/* Got the client's commit */
+		char comm_input[strlen(recving)];
+		strcpy(comm_input, recving);
+		int comm_check = push_check(project, comm_input);
 		printf("comm check: %d\n", comm_check);
 		if (comm_check == -1) {
 			free(recving);
@@ -425,13 +433,68 @@ void *handler(void *args) {
 		int version = atoi(mani_token);
 		char vers_path[strlen(project) + 29 + sizeof(version)];
 		snprintf(vers_path, strlen(project) + 29 + sizeof(version), ".server_directory/%s/version%d", project, version);
-		if (version == 0) {
-			mkdir(vers_path);
-		} else {
-			char new_vers_path[strlen(project) + 29 + sizeof(version + 1)];
-			snprintf(vers_path, strlen(project) + 29 + sizeof(version + 1), ".server_directory/%s/version%d", project, version + 1);
-			int dir_copy_check = dir_copy(vers_path, new_vers_path);
+		char new_vers_path[strlen(project) + 29 + sizeof(version + 1)];
+		snprintf(vers_path, strlen(project) + 29 + sizeof(version + 1), ".server_directory/%s/version%d", project, version + 1);
+		mkdir(new_vers_path, 0744);
+		int dir_copy_check = dir_copy(vers_path, new_vers_path);
+		if (dir_copy_check == 0) {
+			snprintf(to_send, 2, "g");
+			sent = send(client_socket, to_send, 2, 0);
 		}
+		char *comm_token = strtok(comm_input, "\t\n");
+		int count = 1;
+		int remove_check = 0;
+		int update_check = 0;
+		while (comm_token != NULL) {
+			if (count % 4 == 1) {
+				if (token[0] == 'R') {
+					remove_check = 1;
+				} else if (token[0] == 'U') {
+					update_check = 1;
+				}
+			} else if (count % 2 == 1) {
+				token += strlen(project) + 1;
+				int path_len = strlen(new_vers_path) + 1 + strlen(token);
+				char new_file_path[path_len + 1];
+				snprintf(new_file_path, path_len + 1, "%s/%s", new_vers_path, token);
+				if (remove_check == 1) {
+					remove(new_file_path);
+					remove_check = 0;
+				} else {
+					free(recving);
+					recving = (char *) malloc(256);
+					received = recv(client_socket, recving, 256, 0);
+					recving[received] = '\0';
+					int new_size = atoi(recving);
+					free(recving);
+					recving = (char *) malloc(new_size + 1);
+					received = recv(client_socket, recving, size, 0);
+					while (received < size) {
+						int bytes_recved = recv(client_socket, recving + received, size, 0);
+						received += bytes_recved;
+					}
+					recving[received] = '\0';
+					int fd_new_file;
+					if (update_check == 1) {
+						fd_new_file = open(new_file_path, O_WRONLY | O_TRUNC);
+					} else {
+						fd_new_file = open(new_file_path, O_WRONLY | O_CREAT, 0744);
+					}
+					if (fd_new_file < 0) {
+						free(recving);
+						snprintf(to_send, 2, "x");
+						sent = send(client_socket, to_send, 2, 0);
+						free(to_send);
+						fprintf(stderr, "ERROR: Failed to open \"%s\" filein project.\n", new_file_path);
+						pthread_exit(NULL);
+					}
+					write(fd_new_file, recving, size);
+					snprintf(to_send, 2, "g");
+					sent = send(client_socket, to_send, 2, 0);
+				}
+			}
+		}
+		
 	}
 	pthread_exit(NULL);
 }

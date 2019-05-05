@@ -305,3 +305,53 @@ int push_check(char *project, char *comm_input) {
 	}
 	return 1;
 }
+
+int dir_copy(char *src, char *dest) {
+	DIR *dir;
+	struct dirent *de;
+/*	char temp_dest[strlen(dest) + 2];
+	char temp_src[strlen(src) + 2]; */
+	if ((dir = opendir(src)) == NULL) {
+		fprintf(stderr, "ERROR: Cannot open directory \"%s\".\n", src);
+		return -1;
+	}
+	while ((de = readdir(dir)) != NULL) {
+		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) {
+			continue;
+		}
+		char *new_src_path = (char *) malloc(strlen(src) + strlen(de->d_name) + 2);
+		char *new_dest_path = (char *) malloc(strlen(dest) + strlen(de->d_name) + 2);
+		snprintf(new_src_path, strlen(src) + strlen(de->d_name) + 2, "%s/%s", src, de->d_name);
+		snprintf(new_dest_path, strlen(dest) + strlen(de->d_name) + 2, "%s/%s", dest, de->d_name);
+		if (de->d_type == DT_DIR) {
+			mkdir(new_dest_path, 0744);
+			if (dir_copy(new_src_path, new_dest_path) != 0) {
+				return -1;
+			} else {
+				return 0;
+			}
+		} else {
+			int fd_src_file = open(new_src_path, O_RDONLY);
+			if (fd_src_file < 0) {
+				fprintf(stderr, "ERROR: Cannot open file \"%s\".\n", new_src_path);
+				return -1;
+			}
+			int fd_dest_file = open(new_dest_path, O_CREAT | O_WRONLY, 0744);
+			if (fd_dest_file < 0) {
+				fprintf(stderr, "ERROR: Cannot create file \"%s\".\n", new_dest_path);
+				return -1;
+			}
+			int size = get_file_size(fd_src_file);
+			if (size < 0) {
+				fprintf(stderr, "ERROR: Cannot get size of file \"%s\".\n", new_src_path);
+				return -1;
+			}
+			char input[size + 1];
+			read(fd_src_file, input, size);
+			write(fd_dest_file, input, size);
+		}
+		free(new_src_path);
+		free(new_dest_path);
+	}
+	return 0;
+}
