@@ -452,8 +452,118 @@ int main (int argc, char **argv) {
 				remove(comm_path);
 				return EXIT_FAILURE;
 			}
-			
-			
+			received = recv(client_socket, recving, 2, 0);
+			if (recving[0] == 'x') {
+				fprintf(stderr, "ERROR: Server could not open its .Manifest for project \"%s\".\n", argv[2]);
+			} else if (recving[0] == 'g') {
+				printf("Server initializing new version of project \"%s\".\n", argv[2]);
+			}
+			received = recv(client_socket, recving, 2, 0);
+			if (recving[0] == 'b') {
+				fprintf(stderr, "ERROR: Server could not instantiate new version of project \"%s\".\n", argv[2]);
+				return EXIT_FAILURE;
+			}
+			/* Open .Manifest */
+			char mani_path[strlen(project) + 11];
+			snprintf(mani_path, strlen(project) + 11, "%s/.Manifest", argv[2]);
+			int fd_mani = open(mani_path, O_RDONLY);
+			int mani_size = get_file_size(fd_mani);
+			if (fd_mani < 0 || mani_size < 0) {
+				free(to_send);
+				to_send = (char *) malloc(2);
+				snprintf(to_send, 2, "x");
+				sent = send(client_socket, to_send, 2, 0);
+			}
+			char mani_buff[mani_size + 1];
+			int bytes_read = read(fd_mani, mani_buff, mani_size);
+			char mani_jic[mani_size + 1];
+			char *new_mani_buff = (char *) malloc(mani_size + 1);
+			strncpy(mani_jic, mani_buff, bytes_read);
+			strncpy(new_mani_buff, mani_buff, bytes_read);
+			char *mani_token = strtok(mani_buff, "\n");
+			int mani_vers = atoi(mani_token);
+			new_mani_buff += strlen(mani_token) + 1;
+			char write_to_new_mani[strlen(new_mani_buff) + 2 + sizeof(mani_vers + 1)];
+			snprintf(write_to_new_mani, strlen(new_mani_buff) + 2 + sizeof(mani_vers + 1), "%d\n%s", mani_vers + 1, new_mani_buff);
+			fd_mani = open(mani_path, O_RDWR, | O_TRUNC);
+			write(fd_mani, write_to_new_mani, strlen(write_to_new_mani));
+			char *comm_token = strtok(comm_input, "\t\n");
+			int count = 1;
+			int remove_check = 0;
+			int update_check = 0;	
+			char *path;
+			while (comm_token != NULL) {
+				if (count % 4 == 1){
+					if (comm_token[0] == 'R') {
+						remove_check = 1;
+					} else if (comm_token[0] == 'U') {
+						update_check = 1;
+					}
+				} else if (count % 4 == 3) {
+					if (!remove_check) {
+						free(to_send);
+						path = (char *) malloc(strlen(token) + 1);
+						strncpy(path, token, strlen(token));
+						int fd_file = open(token, O_RDONLY);
+						int file_size = get_file_size(fd_file);
+						if (fd_file < 0 || file_size < 0) {
+							to_send = (char *) malloc(2);
+							snprintf(to_send, 2, "x");
+							sent = send(client_socket, to_send, 2, 0);
+							fd_mani = open(mani_path, O_WRONLY | O_TRUNC);
+							write(fd_mani, mani_jic, mani_size);
+							close(fd_mani);
+							return EXIT_FAILURE;
+						}
+						sending_size = sizeof(file_size);
+						to_send = (char *) malloc(sending_size);
+						snprintf(to_send, sending_size, "%d", file_size);
+						sent = send(client_socket, to_send, sending_size, 0);
+						free(to_send);
+						sending_size = file_size + 1;
+						to_send = (char *) malloc(sending_size);
+						read(fd_file, to_send, sending_size);
+						sent = send(client_socket, to_send, sending_size);
+						while (sent < file_size) {
+								int bytes_sent = send(client_socket, to_send + sent, sending_size);
+								sent += bytes_sent;
+						}
+						received = recving(client_socket, recving, 2, 0);
+						if (recving[0] == 'x') {
+							fprintf(stderr, "ERROR: Server could not open new copy of \"%s\" in project \"%s\".\n", token, argv[2]);
+							fd_mani = open(mani_path, O_WRONLY | O_TRUNC);
+							write(fd_mani, mani_jic, mani_size);
+							close(fd_mani);
+							free(path);
+							return EXIT_FAILURE;
+						}
+					}
+				} else if (count % 4 == 0) {
+					char hashed[strlen(token)];
+					strcpy(hashed, token);
+					if (!remove_check) {
+						if (update_check) {
+							add(fd_mani, hashed, path, write_to_new_mani, 1);
+							update_check = 0;
+						} else {
+							add(fd_mani, hashed, path, write_to_new_mani, 0);
+						}
+						free(path);
+					} else {
+						remove_check = 0;
+					}
+				}
+				comm_token = strtok(NULL, "\t\n");
+				++count;
+			}
+			received = recv(client_socket, recving, 2, 0);
+			if (recving[0] == 'g') {
+				printf("Push succeeded!\n");
+				remove(comm_path);
+			} else {
+				printf("Push failed.\n");
+				remove(comm_path);
+			}
 		}
 		close(client_socket);
 	}

@@ -426,7 +426,9 @@ void *handler(void *args) {
 			free(to_send);
 			fprintf(stderr, "ERROR: Failed to get .Manifest's size for project \"%s\".\n", project);
 			pthread_exit(NULL);
-		}	
+		}
+		snprintf(to_send, 2, "g");
+		sent = send(client_socket, to_send, 2, 0);
 		char mani_buff[mani_size + 1];
 		int bytes_read = read(fd_mani, mani_buff, mani_size);
 		char mani_jic[mani_size + 1];
@@ -436,10 +438,9 @@ void *handler(void *args) {
 		strncpy(new_mani_buff, mani_buff, bytes_read);
 /*		new_mani_buff[bytes_read - 1] = '\0'; */
 		char *mani_token = strtok(mani_buff, "\n");
-		int version = atoi(mani_token);
-		printf("next line causing you problemsi\n");
+		int version = atoi(mani_token);	
 		new_mani_buff += strlen(mani_token) + 1;
-		char write_to_new_mani[strlen(new_mani_buff + 2 + sizeof(version + 1))];
+		char write_to_new_mani[strlen(new_mani_buff) + 2 + sizeof(version + 1)];
 		snprintf(write_to_new_mani, strlen(new_mani_buff) + 2 + sizeof(version + 1), "%d\n%s", version + 1, new_mani_buff);
 		fd_mani = open(mani_path, O_RDWR | O_TRUNC);
 		write(fd_mani, write_to_new_mani, strlen(write_to_new_mani));
@@ -455,6 +456,12 @@ void *handler(void *args) {
 		} else {
 			snprintf(to_send, 2, "b");
 			sent = send(client_socket, to_send, 2, 0);
+			free(to_send);
+			free(recving);
+			write(fd_mani, mani_jic, mani_size);
+			remove_dir(new_vers_path);
+			fprintf(stderr, "ERROR: Failed to instantiate new version of project \"%s\".\n", project);
+			pthread_exit(NULL);
 		}
 		char *comm_token = strtok(comm_input, "\t\n");
 		int count = 1;
@@ -526,14 +533,16 @@ void *handler(void *args) {
 					} else {
 						add(fd_mani, hashed, path, write_to_new_mani, 0);
 					}
-				free(path);
+					free(path);
 				} else {
 					remove_check = 0;
 				}
 			}
+			comm_token = strtok(NULL, "\t\n");
+			++count;
 		}
-		comm_token = strtok(NULL, "\t\n");
-		++count;
+		snprintf(to_send, 2, "g");
+		sent = send(client_socket, to_send, 2, 0);
 	}
 	pthread_exit(NULL);
 }
