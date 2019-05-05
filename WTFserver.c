@@ -16,7 +16,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include "helperfunctions.h"
-
+/* lol */
 struct server_context {
 	unsigned int num_connections;
 	pthread_mutex_t lock;
