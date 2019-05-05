@@ -10,7 +10,7 @@
 #include <openssl/sha.h>
 
 
-unsigned int tokenize(char *path, char *input, char *hash) {
+unsigned int tokenize(char *path, char *input, char *hash, int flag, int *version) {
 	if (input == NULL) {
 		return 0;	
 	}
@@ -19,12 +19,18 @@ unsigned int tokenize(char *path, char *input, char *hash) {
 	char *token;
 	unsigned int byte_count = 0;
 	unsigned int prev_bytes = 0;
+	unsigned int check_bytes = 0;
 	short check = 0;
 	token = strtok(whole_string, "\n\t");
 	prev_bytes = strlen(token) + 1;
 	byte_count += prev_bytes;
+	int count = 0;
 	while (token != NULL) {
 		token = strtok(NULL, "\n\t");
+		++count;
+		if (count % 3 == 1 && version != NULL) {
+			*version = atoi(token);
+		}
 		if (token == NULL) {
 			break;
 		}
@@ -32,28 +38,29 @@ unsigned int tokenize(char *path, char *input, char *hash) {
 			if (strcmp(token, hash) == 0) {
 					return -1;
 			} else {
-				return byte_count;
+				return byte_count - (flag * check_bytes) - (flag * prev_bytes);
 			}
 		}
 		if (strcmp(token, path) == 0) {
 			check = 1;
 		}
+		check_bytes = prev_bytes;
 		prev_bytes = strlen(token) + 1;
 		byte_count += prev_bytes;
 	}
 	return strlen(input);
-	
 }
 
-int add(int fd_manifest, char *hashcode, char *path, char *input) {
-	int *version = (int *) malloc(sizeof(int));
-	int move = tokenize(path, input, hashcode);
+int add(int fd_manifest, char *hashcode, char *path, char *input, int flag) {
+	int *vers = (int *) malloc(sizeof(int));
+	*vers = 0;
+	int move = tokenize(path, input, hashcode, flag, vers);
 	if (move == 0) {
-		fprintf(stderr, "ERROR: Could not read \".Manifest\" file.\n");
+		fprintf(stderr, "ERROR: Could not read .Manifest.\n");
 		return -1;
 	}
 	if (move == -1) {
-		fprintf(stderr, "ERROR: File already up-to-date in local \".Manifest\" file.\n");
+		fprintf(stderr, "ERROR: File already up-to-date in .Manifest.\n");
 		return -1;
 	}
 	if (move == -2) {
@@ -68,15 +75,24 @@ int add(int fd_manifest, char *hashcode, char *path, char *input) {
 		write(fd_manifest, "\t", 1);
 		write(fd_manifest, hashcode, strlen(hashcode));	
 		write(fd_manifest, "\n", 1);
-	} else {
+	} else if (!flag) {
 		write(fd_manifest, hashcode, strlen(hashcode));
+	} else {
+		int update = *vers + 1;
+		char update_string[sizeof(update) + 2];
+		snprintf(update_string, sizeof(update) + 2, "%d\t", update);
+		write(fd_manifest, update_string, strlen(update_string));
+		write(fd_manifest, path, strlen(path));
+		write(fd_manifest, "\t", 1);
+		write(fd_manifest, hashcode, strlen(hashcode));
+		write(fd_manifest, "\n", 1);
 	}
 	return 0;
 }
 
 int remover(int fd_manifest, char *path, char *input) {
 	char dashes[65] = "----------------------------------------------------------------";
-	int move = tokenize(path, input, dashes);
+	int move = tokenize(path, input, dashes, 0, NULL);
 	if (move == strlen(input)) {
 		fprintf(stderr, "ERROR: File \"%s\" not in \".Manifest\" file.\n", path);
 		return -1;
@@ -296,6 +312,8 @@ int push_check(char *project, char *comm_input) {
 			}
 			char input[size + 1];
 			int bytes_read = read(fd_comm, input, size);
+			input[size] = '\0';
+			input[size - 1] = '\0';
 			if (strcmp(input, comm_input) == 0) {
 				free(comm_path);
 				return delete_commits(path, de->d_name);
