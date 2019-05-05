@@ -9,6 +9,8 @@
 #include <math.h>
 #include <openssl/sha.h>
 
+char dashes[65] = "----------------------------------------------------------------";
+
 unsigned int tokenize(char *path, char *input, char *hash, int flag, int *version) {
 	if (input == NULL) {
 		return 0;	
@@ -93,7 +95,6 @@ int add(int fd_manifest, char *hashcode, char *path, char *input, int flag) {
 }
 
 int remover(int fd_manifest, char *path, char *input) {
-	char dashes[65] = "----------------------------------------------------------------";
 	int move = tokenize(path, input, dashes, 0, NULL);
 	if (move == strlen(input)) {
 		fprintf(stderr, "ERROR: File \"%s\" not in \".Manifest\" file.\n", path);
@@ -170,7 +171,6 @@ int commit_check(int version, char *path, char *hash, char *other_mani) {
 	int count = 0;
 	int hash_check = 0;
 	int vers = 0;
-	printf("about to enter while for ocmmit chekc\n");
 	while (token != NULL) {
 		token = strtok(NULL, "\t\n");
 		++count;
@@ -210,28 +210,30 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 	char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
 	char *path = NULL;
 	int bytes = 2;
+	int delete_check = 0;
 	while (token != NULL) {
-		printf("past\n");
 		token = strtok(NULL, "\t\n");
 		++count;
 		if (token == NULL) {
-			if (bytes < len - 1) {
-				printf("entered this shit, bytes = %d, len = %d\n", bytes, len);
+			if (bytes < len - 1) {	
 				strcpy(temp, client_mani);
 				token = strtok(&(temp[bytes - 1]), "\t\n"); 	
 			} else {
 				break;
 			}
-		}
-		printf("token: %s, count: %d\n", token, count);
+		}	
 		if (count % 3 == 1) {
 			version = atoi(token);
 			++version;
 		} else if (count % 3 == 2) {
 			int fd = open(token, O_RDONLY);
 			int size = get_file_size(fd);
+			path = malloc(strlen(token) + 1);
+			snprintf(path, strlen(token) + 1, "%s", token);
 			if (fd < 0 || size < 0) {
-				return -1;
+				delete_check = 1;	
+				bytes += strlen(token) + 1;
+				continue;	
 			}
 			char buff[size + 1];
 			read(fd, buff, size);
@@ -240,20 +242,26 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 			for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
 				sprintf(hashed + (i * 2), "%02x", hash[i]);
 			}
-			path = malloc(strlen(token) + 1);
-			snprintf(path, strlen(token) + 1, "%s", token);
 		} else {
+			int token_equals_dashes = strcmp(token, dashes);
+			int comm_check;
+			if (token_equals_dashes != 0 && delete_check) {
+				free(path);
+				return -1;
+			} else if (!token_equals_dashes && delete_check) {
+				delete_check = 0;
+				strcpy(hashed, dashes);
+				comm_check = commit_check(version - 1, path, dashes, server_mani);
+			} else {
+				comm_check = commit_check(version - 1, path, token, server_mani);
+			}
 			int token_equals_hash = strcmp(token, hashed);
-			int token_equals_dashes = strcmp(token, "----------------------------------------------------------------");
-			printf("about to comm check\n");
-			int comm_check = commit_check(version - 1, path, token, server_mani);
-			printf("passed comm check\n");
 			if (comm_check == -1) {
 				return -1;
 			}
-			if (token_equals_dashes == 0 && comm_check != 2) {
+			if (token_equals_dashes == 0 && comm_check == 1) {
 				write(fd_comm, "D\t", 2);
-			} else if (token_equals_hash != 0 && comm_check == 2) {
+			} else if (token_equals_hash != 0 && token_equals_hash != 0 && comm_check == 2) {
 				write(fd_comm, "A\t", 2);
 			} else if (token_equals_hash != 0 && comm_check != 2) {
 				write(fd_comm, "M\t", 2);

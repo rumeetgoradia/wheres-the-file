@@ -61,7 +61,7 @@ int main (int argc, char **argv) {
 		char *path = (char *) malloc(strlen(argv[2]) + strlen(argv[3]) + 2);
 		snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s/%s", argv[2], argv[3]);
 		int fd_file = open(path, O_RDONLY);
-		if (fd_file < 0) {
+		if (fd_file < 0 && strcmp("add", argv[1]) == 0) {
 			printf("ERROR: File \"%s\" does not exist in project \"%s\".\n", argv[3], argv[2]);
 			free(path);
 			close(fd_file);
@@ -90,18 +90,17 @@ int main (int argc, char **argv) {
 			write(fd_manifest, "0\n", 2);
 		}
 		free(temp2);
-		int size = get_file_size(fd_file);
-		char input[size + 1];
-		read(fd_file, input, size);
-		unsigned char hash[SHA256_DIGEST_LENGTH];
-		SHA256(input, strlen(input), hash);
-		char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
-		int i = 0;
-		for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
-			sprintf(hashed + (i * 2), "%02x", hash[i]);
-		}	
-
 		if (strcmp(argv[1], "add") == 0) {
+			int size = get_file_size(fd_file);
+			char input[size + 1];
+			read(fd_file, input, size);
+			unsigned char hash[SHA256_DIGEST_LENGTH];
+			SHA256(input, strlen(input), hash);
+			char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
+			int i = 0;
+			for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
+				sprintf(hashed + (i * 2), "%02x", hash[i]);
+			}	
 			if (add(fd_manifest, hashed, path, mani_input, 0) == -1) {
 				free(path);
 				free(path_mani);
@@ -378,10 +377,9 @@ int main (int argc, char **argv) {
 			char *path_comm = (char *) malloc(strlen(argv[2]) + 10);
 			snprintf(path_comm, strlen(argv[2]) + 10, "%s/.Commit", argv[2]);
 			printf("commit path: %s\n", path_comm);
-			int fd_comm = open(path_comm, O_RDWR | O_CREAT | O_TRUNC, 0744);
-			int comm_size = get_file_size(fd_comm);
-			if (fd_comm < 0 || comm_size < 0) {
-				printf("ERROR: Could not open or create \".Commit\" file for \"%s\" project.\n", argv[2]);
+			int fd_comm = open(path_comm, O_RDWR | O_CREAT | O_TRUNC, 0744);	
+			if (fd_comm < 0) {
+				printf("ERROR: Could not open or create .Commit for project \"%s\".\n", argv[2]);
 				free(to_send);
                                 to_send = (char *) malloc(2);
                                 snprintf(to_send, 2, "x");
@@ -414,7 +412,7 @@ int main (int argc, char **argv) {
 				fprintf(stderr, "ERROR: Local \"%s\" project is not up-to-date with server.\n", argv[2]);
 				free(to_send);
                                 to_send = (char *) malloc(2);
-                                snprintf(to_send, 2, "x");
+                                snprintf(to_send, 2, "b");
                                 sent = send(client_socket, to_send, 2, 0);
                                 free(to_send);
                                 free(recving);
@@ -423,8 +421,22 @@ int main (int argc, char **argv) {
 			}
 			printf("past commit\n");
 			free(to_send);
+			int comm_size = get_file_size(fd_comm);
+			if (comm_size < 0) {
+                                printf("ERROR: Could not get size of .Commit for \"%s\" project.\n", argv[2]);
+                                free(to_send);
+                                to_send = (char *) malloc(2);
+                                snprintf(to_send, 2, "x");
+                                sent = send(client_socket, to_send, 2, 0);
+                                free(to_send);
+                                free(recving);
+                                free(client_mani);
+                                free(path_comm);
+                                close(fd_comm);
+                                return EXIT_FAILURE;
+                        }
 			sending_size = sizeof(comm_size);
-			to_send = (char *) malloc(sending_size);
+			to_send = (char *) malloc(sending_size + 1);
 			snprintf(to_send, sending_size, "%d", comm_size);
 			sent = send(client_socket, to_send, sending_size, 0);
 			lseek(fd_comm, 0, SEEK_SET);
@@ -432,7 +444,8 @@ int main (int argc, char **argv) {
 			to_send = (char *) malloc(comm_size);
 			int bytes_read = read(fd_comm, to_send, comm_size); 
 			sent = send(client_socket, to_send, comm_size, 0);
-			received = recv(client_socket, recving, 1, 0);
+			received = recv(client_socket, recving, 2, 0);
+			printf("received: %s\n", recving);
 			if (recving[0] == 'b') {
 				fprintf(stderr, "ERROR: Server failed to create its own \".Commit\" file for \"%s\" project.\n", argv[2]);
 				free(recving);

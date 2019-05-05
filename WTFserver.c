@@ -346,12 +346,31 @@ void *handler(void *args) {
 		char mani_input[bytes_read + 1];
 		strcpy(mani_input, to_send);
 		/* Get .Commit data */
-		char *recving = (char *) malloc(256);
-		received = recv(client_socket, recving, 255, 0);
+		char *recving = (char *) malloc(sizeof(int));
+		received = recv(client_socket, recving, sizeof(int), 0);
+		if (recving[0] == 'x') {
+			fprintf(stderr, "Client failed to create new .Commit for project \"%s\".\n", token);
+			free(recving);
+			free(proj_path);
+			free(mani_path);
+			free(to_send);
+			close(fd_mani);
+			pthread_exit(NULL);
+		} else if (recving[0] == 'b') {
+			fprintf(stderr, "Client's copy of project \"%s\" is not up-to-date.\n", token);
+			free(recving);
+                        free(proj_path);
+                        free(mani_path);
+                        free(to_send);
+                        close(fd_mani);
+			pthread_exit(NULL);
+		}
 		int comm_size = atoi(recving);
+		printf("got comm_size: %d\n", comm_size);
 		free(recving);
 		recving = (char *) malloc(comm_size + 1);
 		received = recv(client_socket, recving, comm_size, 0);
+		printf("received: %s\n", recving);
 //		char temp[remaining + 1];
 //		strcpy(temp, buffer);
 		srand(time(0));
@@ -379,6 +398,7 @@ void *handler(void *args) {
 		free(recving);
 		free(to_send);
 		close(fd_comm_server);
+		printf("Commit successful.\n");
 	} else if (token[0] == 'p') {
 		token = strtok(NULL, ":");
 		char project[strlen(token) + 1];
