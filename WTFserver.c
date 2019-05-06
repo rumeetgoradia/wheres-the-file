@@ -503,7 +503,7 @@ void *handler(void *args) {
 		char *file_path = NULL;
 		printf("about to start for loop\n");
 		for (j = 0; j < len; ++j) {
-			if (comm_input[j] != '\t' && comm_input[j] != '\n' && comm_input[j] != '\0') {
+			if (comm_input[j] != '\t' && comm_input[j] != '\n') {
 				++token_len;
 				continue;
 			} else {
@@ -595,6 +595,18 @@ void *handler(void *args) {
 				free(comm_token);
 				free(file_path);
 			}
+		}
+		if (token_len > 0) {
+			comm_token = (char *) malloc(token_len + 1);
+			for (j = 0; j < token_len; ++j) {
+				comm_token[j] = comm_input[last_sep + j];
+			}
+			comm_token[token_len] = '\0';
+			if (!delete_check) {
+				add(fd_mani, comm_token, file_path, write_to_new_mani, 1);
+			}
+			free(comm_token);
+			free(file_path);
 		}
 		printf("Push complete!\n");
 		snprintf(to_send, 2, "g");
