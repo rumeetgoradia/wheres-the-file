@@ -586,3 +586,36 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 	}
 	return print;
 }
+
+int rollback(char *path, int version) {
+	DIR *dir;
+	if (!(dir = opendir(path))) {
+		fprintf(stderr, "ERROR: Could not open \"%s\" on server.\n", path);
+		return -1;
+	}
+	struct dirent *de;
+	while ((de = readdir(dir)) != NULL) {
+		if (strstr(de->d_name, "version") != NULL) {
+			if (de->d_type != DT_DIR) {
+				continue;
+			}
+			char vers_path[strlen(path) + strlen(de->d_name) + 1];
+			snprintf(vers_path, strlen(path) + strlen(de->d_name) + 1, "%s/%s", path, de->d_name);
+			char mani_path[strlen(vers_path) + 12];
+			snprintf(mani_path, strlen(path) + strlen(de->d_name) + 1, "%s/.Manifest", vers_path);
+			int fd_mani = open(mani_path, O_RDONLY);
+			if (fd_mani < 0) {
+				fprintf(stderr, "ERROR: Not able to parse through versions.\n");
+				return -1;
+			}
+			char mani_input[256];
+			read(fd_mani, mani_input, 255);
+			char *vers_token = strtok(mani_input, "\n");
+			int this_vers = atoi(vers_token);
+			if (this_vers > version) {
+				remove_dir(vers_path);
+			}
+		}
+	}
+	return 0;
+}

@@ -950,6 +950,30 @@ int main (int argc, char **argv) {
 			free(recving);
 			free(to_send);
 			printf("Upgrade successful!\n");
+		} else if (strcmp(argv[1], "rollback") == 0) {
+			if (argc < 4) {
+				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name and desired version number.\n");
+				return EXIT_FAILURE;
+			}
+			if (argc > 4) {
+				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name and desired version number.\n");
+				return EXIT_FAILURE;
+			}
+			int sending_size = strlen(argv[2]) + strlen(argv[3]) + 4;
+			char *to_send = (char *) malloc(sending_size);
+			snprintf(to_send, sending_size, "r:%s:%s", argv[2], argv[3]);
+			sent = send(client_socket, to_send, sending_size, 0);
+			char *recving = (char *) malloc(2);
+			received = recv(client_socket, recving, 2, 0);
+			if (recving[0] == 'b') {
+				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
+			} else if (recving[0] == 'x') {
+				fprintf(stderr, "ERROR: Something went wrong on server during rollback of project \"%s\".\n", argv[2]);
+			} else if (recving[0] == 'v') {
+				fprintf(stderr, "ERROR: Invalid version number inputted. The version number must be less than the current version of project \"%s\" on the server.\n", argv[2]);
+			} else if (recving[0] == 'g') {
+				printf("Rollback successful!\n");
+			}
 		}
 		close(client_socket);
 	}

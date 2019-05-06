@@ -836,6 +836,77 @@ void *handler(void *args) {
 		}
 		free(to_send);
 		free(recving);
+	} else if (token[0] == 'r') {
+		token = strtok(NULL, ":");
+		char project[strlen(token) + 1];
+		strcpy(project, token);
+		project[strlen(token)] = '\0';
+		char proj_path[strlen(project) + 22];
+		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
+		char *to_send = (char *) malloc(2);
+		if (check_dir(proj_path) == -1) {
+			snprintf(to_send, 2, "b");
+			sent = send(client_socket, to_send, 2, 0);
+			fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", project);
+			pthread_exit(NULL);
+		}
+		char mani_path[strlen(proj_path) + 11];
+		snprintf(mani_path, strlen(proj_path) + 11, "%s/.Manifest", proj_path);
+		int fd_mani = open(mani_path, O_RDONLY);
+		if (fd_mani < 0) {
+			snprintf(to_send, 2, "x");
+			sent = send(client_socket, to_send, 2, 0);
+			fprintf(stderr, "ERROR: Cannot open .Manifest for project \"%s\".\n", project);
+			free(to_send);
+			close(fd_mani);
+			pthread_exit(NULL);
+		}
+		token = strtok(NULL, ":");
+		int req_vers = atoi(token);
+		char vers[256];
+		read(fd_mani, vers, 256);
+		char *vers_token = strtok(vers, "\n");
+		int serv_vers = atoi(vers_token);
+		if (req_vers >= serv_vers) {
+			fprintf(stderr, "ERROR: Invalid version given for rollback request of project \"%s\".\n", project);
+			snprintf(to_send, 2, "v");
+			sent = send(client_socket, to_send, 2, 0);
+			free(to_send);
+			close(fd_mani);
+			pthread_exit(NULL);
+		}
+		int rb_check = rollback(proj_path, req_vers);
+		if (rb_check == -1) {
+			snprintf(to_send, 2, "x");
+			sent = send(client_socket, to_send, 2, 0);
+			free(to_send);
+			close(fd_mani);
+			pthread_exit(NULL);
+		}
+		char new_mani_path[strlen(proj_path) + 19 + sizeof(req_vers)];
+		snprintf(new_mani_path, strlen(proj_path) + 19 + sizeof(req_vers), "%s/version%d/.Manifest", proj_path, req_vers);
+		int fd_new_mani = open(new_mani_path, O_RDONLY);
+		int new_size = get_file_size(fd_new_mani);
+		if (fd_new_mani < 0 || new_size < 0) {
+			fprintf(stderr, "ERROR: Cannot get new input for .Manifest following rollback of project \"%s\".\n", project);
+			snprintf(to_send, 2, "x");
+                        sent = send(client_socket, to_send, 2, 0);
+                        free(to_send);
+                        close(fd_mani);
+			close(fd_new_mani);
+                        pthread_exit(NULL);
+		}
+		char new_mani_input[new_size + 1];
+		int br = read(fd_new_mani, new_mani_input, new_size);
+		new_mani_input[br] = '\0';
+		fd_mani = open(mani_path, O_TRUNC | O_WRONLY);
+		write(fd_mani, new_mani_input, new_size);
+		close(fd_new_mani);
+		close(fd_mani);
+		snprintf(to_send, 2, "g");
+		sent = send(client_socket, to_send, 2, 0);
+		free(to_send);
+		printf("Rollback successful!\n");
 	}	
 	pthread_exit(NULL);
 }
