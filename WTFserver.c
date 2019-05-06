@@ -260,7 +260,8 @@ void *handler(void *args) {
 			free(mani_path);
 			free(proj_path);
 			char sending[2] = "x";
-			sent = send(client_socket, sending, 2, 0);
+			sent = send(client_socket, sending, 2, 0);	
+			close(fd_mani);
 			pthread_exit(NULL);	
 		}
 		struct stat st = {0};
@@ -295,6 +296,7 @@ void *handler(void *args) {
 			offset += sent;
 		} */
 		printf("Sent .Manifest file for \"%s\" project to client.\n", token);
+		close(fd_mani);
 		free(mani_path);
 		pthread_exit(NULL);
 	} else if (token[0] == 'o') {
@@ -319,6 +321,7 @@ void *handler(void *args) {
 			free(mani_path);
 			snprintf(to_send, 2, "x");
 			sent = send(client_socket, to_send, 2, 0);
+			close(fd_mani);
 			pthread_exit(NULL);	
 		}
 		int sending_size = sizeof(mani_size);
@@ -384,6 +387,7 @@ void *handler(void *args) {
 			sent = send(client_socket, to_send, 2, 0);
 			free(recving);
 			free(to_send);
+			close(fd_mani);
 			close(fd_comm_server);
 			pthread_exit(NULL);
 		}
@@ -451,6 +455,7 @@ void *handler(void *args) {
 			sent = send(client_socket, to_send, 2, 0);
 			free(to_send);
 			fprintf(stderr, "ERROR: Failed to open .Manifest for project \"%s\".\n", project);
+			close(fd_mani);
 			pthread_exit(NULL);
 		}
 		int mani_size = get_file_size(fd_mani);
@@ -460,6 +465,7 @@ void *handler(void *args) {
 			sent = send(client_socket, to_send, 2, 0);
 			free(to_send);
 			fprintf(stderr, "ERROR: Failed to get .Manifest's size for project \"%s\".\n", project);
+			close(fd_mani);
 			pthread_exit(NULL);
 		}
 		snprintf(to_send, 2, "g");
@@ -496,6 +502,7 @@ void *handler(void *args) {
 			write(fd_mani, mani_jic, mani_size);
 			remove_dir(new_vers_path);
 			fprintf(stderr, "ERROR: Failed to instantiate new version of project \"%s\".\n", project);
+			close(fd_mani);
 			pthread_exit(NULL);
 		}	
 		/* Tokenizing comm_input */
@@ -558,6 +565,7 @@ void *handler(void *args) {
 						remove_dir(new_vers_path);
 						free(file_path);
 						free(comm_token);
+						close(fd_mani);
 						pthread_exit(NULL);
 					}
 					int file_size = atoi(recving);
@@ -590,7 +598,7 @@ void *handler(void *args) {
 					write(fd_new_file, recving, file_size);
 					snprintf(to_send, 2, "g");
 					sent = send(client_socket, to_send, 2, 0);
-//					free(comm_token);
+					close(fd_new_file);
 				}
 			} else if (count % 4 == 0) {
 				if (!delete_check) {
@@ -632,6 +640,7 @@ void *handler(void *args) {
 		int fd_new_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0744);
 		write(fd_new_mani, write_to_new_mani, strlen(write_to_new_mani));
 		close(fd_new_mani);
+		close(fd_mani);
 		printf("Push complete!\n");
 		snprintf(to_send, 2, "g");
 		sent = send(client_socket, to_send, 2, 0);	
@@ -659,6 +668,7 @@ void *handler(void *args) {
 			free(mani_path);
 			snprintf(to_send, 2, "x");
 			sent = send(client_socket, to_send, 2, 0);
+			close(fd_mani);
 			pthread_exit(NULL);	
 		}
 		int sending_size = sizeof(mani_size);
@@ -675,6 +685,7 @@ void *handler(void *args) {
 			int bytes_sent = send(client_socket, to_send + sent, bytes_read, 0);
 			sent += bytes_sent;
 		} 
+		close(fd_mani);
 	} else if (token[0] == 'g') {
 		token = strtok(NULL, ":");
 		char *proj_path = (char *) malloc(strlen(token) + 22);
@@ -789,6 +800,7 @@ void *handler(void *args) {
 						free(recving);
 						free(upd_token);
 						close(fd);
+						close(fd_mani);
 						pthread_exit(NULL);
 					}
 					free(to_send);
@@ -839,6 +851,7 @@ void *handler(void *args) {
 		} else {
 			printf("Upgrade failed.\n");
 		}
+		close(fd_mani);
 		free(to_send);
 		free(recving);
 	} else if (token[0] == 'r') {
