@@ -430,7 +430,7 @@ int main (int argc, char **argv) {
 			if (comm_size == 0) {
 				fprintf(stderr, "ERROR: .Commit for project \"%s\" is empty.\n", argv[2]);
 				free(to_send);
-				ree(recving);
+				free(recving);
 				free(client_mani);
 				free(path_comm);
 				close(fd_comm);
