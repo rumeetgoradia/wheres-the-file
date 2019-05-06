@@ -198,35 +198,45 @@ int commit_check(int version, char *path, char *hash, char *other_mani) {
 
 int commit(int fd_comm, char *client_mani, char *server_mani) {	
 	int len = strlen(client_mani);
-	char temp[len + 1];
-	strcpy(temp, client_mani);
-	char *token = strtok(temp, "\n");
-	int count = 0;
+	int j = 0, k = 0;
+	char *token;
+	int token_len = 0;
+	int last_sep = 0;
+	int count = -1;
 	int version = 0;
 	unsigned char hash[SHA256_DIGEST_LENGTH];
 	char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
 	char *path = NULL;
 	int bytes = 2;
 	int delete_check = 0;
-	while (token != NULL) {
-		token = strtok(NULL, "\t\n");
-		++count;
-		if (token == NULL) {
-			if (bytes < len - 1) {	
-				strcpy(temp, client_mani);
-				token = strtok(&(temp[bytes - 1]), "\t\n"); 	
-			} else {
-				break;
+	for (j = 0; j < len; ++j) {	
+		if (client_mani[j] != '\t' && client_mani[j] != '\n') {
+			++token_len;
+			continue;
+		} else {
+			token = (char *) malloc(token_len + 1);
+			for (k = 0; k < token_len; ++k) {
+				token[k] = client_mani[last_sep + k];
 			}
-		}	
+			token[token_len] = '\0';
+			last_sep += token_len + 1;
+			token_len = 0;
+			++count;
+		}
+		if (count == 0) {
+			free(token);
+			continue;
+		}
 		if (count % 3 == 1) {
 			version = atoi(token);
 			++version;
+			free(token);
 		} else if (count % 3 == 2) {
+			printf("token: %s\n", token);
 			int fd = open(token, O_RDONLY);
 			int size = get_file_size(fd);
-			path = malloc(strlen(token) + 1);
-			snprintf(path, strlen(token) + 1, "%s", token);
+			path = (char *)malloc(strlen(token) + 1);
+			strcpy(path, token);
 			path[strlen(token)] = '\0';
 			if (fd < 0 || size < 0) {
 				delete_check = 1;	
@@ -241,6 +251,7 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 			for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
 				sprintf(hashed + (i * 2), "%02x", hash[i]);
 			}
+			free(token);
 		} else {
 			int token_equals_dashes = strcmp(token, dashes);
 			int comm_check;
@@ -257,12 +268,13 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 			int token_equals_hash = strcmp(token, hashed);
 			if (comm_check == -1) {
 				return -1;
-			}	
-			if (token_equals_dashes == 0 && comm_check == 1) {
+			}
+			printf("token: %s : comm: %d\n", token, comm_check);	
+			if (token_equals_dashes == 0 && comm_check != 2) {
 				write(fd_comm, "D\t", 2);
 			} else if (token_equals_dashes != 0 && comm_check == 2) {
 				write(fd_comm, "A\t", 2);
-			} else if (token_equals_hash != 0 && comm_check != 2) {
+			} else if (token_equals_dashes != 0 && comm_check == 1) {
 				write(fd_comm, "M\t", 2);
 			} else {
 				bytes += strlen(token) + 1;
@@ -277,8 +289,8 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 			write(fd_comm, hashed, strlen(hashed));
 			write(fd_comm, "\n", 1);
 			free(version_string);
+			free(token);
 		}
-		bytes += strlen(token) + 1;
 	}
 	return 1;	
 }
@@ -595,14 +607,19 @@ int rollback(char *path, int version) {
 	}
 	struct dirent *de;
 	while ((de = readdir(dir)) != NULL) {
-		if (strstr(de->d_name, "version") != NULL) {
+		char temp[strlen(de->d_name) + 1];
+		strcpy(temp, de->d_name);
+		temp[strlen(de->d_name)] = '\0';
+		printf("d_name: %s\n", de->d_name);
+		if (strstr(temp, "version") != NULL) {
 			if (de->d_type != DT_DIR) {
 				continue;
 			}
-			char vers_path[strlen(path) + strlen(de->d_name) + 1];
-			snprintf(vers_path, strlen(path) + strlen(de->d_name) + 1, "%s/%s", path, de->d_name);
+			char vers_path[strlen(path) + strlen(de->d_name) + 2];
+			snprintf(vers_path, strlen(path) + strlen(de->d_name) + 2, "%s/%s", path, de->d_name);
 			char mani_path[strlen(vers_path) + 12];
-			snprintf(mani_path, strlen(path) + strlen(de->d_name) + 1, "%s/.Manifest", vers_path);
+			snprintf(mani_path, strlen(vers_path) + 12, "%s/.Manifest", vers_path);
+			printf("mani: %s\n", mani_path);
 			int fd_mani = open(mani_path, O_RDONLY);
 			if (fd_mani < 0) {
 				fprintf(stderr, "ERROR: Not able to parse through versions.\n");

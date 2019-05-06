@@ -190,6 +190,11 @@ void *handler(void *args) {
 			char *new_vers_path = (char *) malloc(strlen(new_proj_path) + 9);
 			snprintf(new_vers_path, strlen(new_proj_path) + 9, "%sversion0", new_proj_path);
 			mkdir(new_vers_path, 0744);
+			char extra_mani[strlen(new_vers_path) + 11];
+			snprintf(extra_mani, strlen(new_vers_path) + 11, "%s/.Manifest", new_vers_path);
+			int fd_extra = open(extra_mani, O_CREAT | O_WRONLY, 0744);
+			write(fd_extra, "0\n", 2);
+			close(fd_extra);
 			free(new_vers_path);
 			char *new_mani_path = (char *) malloc(strlen(new_proj_path) + 11);
 			snprintf(new_mani_path, strlen(new_proj_path) + 11, "%s.Manifest", new_proj_path);
@@ -604,7 +609,7 @@ void *handler(void *args) {
 				free(file_path);
 			}
 		}
-		if (token_len > 0) {
+		if (token_len > 0 && !delete_check) {
 			comm_token = (char *) malloc(token_len + 1);
 			for (j = 0; j < token_len; ++j) {
 				comm_token[j] = comm_input[last_sep + j];
