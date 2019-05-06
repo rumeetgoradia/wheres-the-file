@@ -424,14 +424,21 @@ int update_check(char *mani, int client_version, int server_version, char *hash,
 		} else if (count % 3 == 2) {
 			if (strcmp(file_check, mani_token) == 0) {
 				check = 1;
-				if (hash == NULL) {
-					return 0;	
-				}
 			}
 			free(mani_token);
 		} else if (count % 3 == 0) {
 			if (check == 1) {
-				if (strcmp(hash, mani_token) == 0 && file_version == version && client_version == server_version) {
+				if (strcmp(hash, dashes) == 0 && strcmp(mani_token, dashes) == 0) {
+					return 5;
+				} else if (strcmp(hash, dashes) == 0 && strcmp(mani_token, dashes) != 0 && client_version != server_version) {
+					return 3;
+				} else if (strcmp(hash, dashes) != 0 && strcmp(mani_token, dashes) == 0) {
+					if (client_version == server_version) {
+						return 4;
+					} else {
+						return 1;
+					}
+				} else if (strcmp(hash, mani_token) == 0 && file_version == version && client_version == server_version) {
 					free(mani_token);
 					return 2;
 				} else if (strcmp(hash, mani_token) != 0 && client_version == server_version) {
@@ -443,7 +450,7 @@ int update_check(char *mani, int client_version, int server_version, char *hash,
 				}
 				free(mani_token);
 				break;
-			}
+			} 
 		}
 	}
 	if (client_version == server_version) {
@@ -463,6 +470,8 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 	int version = 0;
 	char *file_path = NULL;
 	int print = 1;
+	char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
+	char *path;
 	for (j = 0; j < len; ++j) {
 		if (client_mani[j] != '\t' && client_mani[j] != '\n') {
 				++token_len;
@@ -499,11 +508,13 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 			unsigned char hash[SHA256_DIGEST_LENGTH];
 			SHA256(buffer, strlen(buffer), hash);
 			int i = 0;
-			char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
 			for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
 				sprintf(hashed + (i * 2), "%02x", hash[i]);
 			}
 			hashed[SHA256_DIGEST_LENGTH * 2] = '\0';
+			path = (char *) malloc(strlen(mani_token) + 1);
+			strcpy(path, mani_token);
+			path[strlen(mani_token)] = '\0';
 			int upd_check = update_check(server_mani, client_version, server_version, hashed, version, mani_token);
 			if (upd_check == -1) {
 				print = 0;
@@ -533,40 +544,27 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 			close(fd);
 			free(mani_token);
 		} else {
-			free(mani_token);
-		}
-	}
-	count = -1;
-	last_sep = 0;
-	token_len = 0;
-	len = strlen(server_mani);
-	version = 0;
-	int hash_check = 0;
-	for (j = 0; j < len; ++j) {
-		if (server_mani[j] != '\t' && server_mani[j] != '\n') {
-				++token_len;
-				continue;
-		} else {
-			mani_token = (char *) malloc(token_len + 1);
-			for (k = 0; k < token_len; ++k) {
-				mani_token[k] = server_mani[last_sep + k];
+			int upd_check = 0;
+			if (strcmp(mani_token, dashes) == 0) {
+				upd_check = update_check(server_mani, client_version, server_version, dashes, version, path);
+			} else {
+				upd_check = update_check(server_mani, client_version, server_version, hashed, version, path);
 			}
-			mani_token[token_len] = '\0';
-			last_sep += token_len + 1;
-			token_len = 0;
-			++count;
-		}
-		if (count == 0) {
-			free(mani_token);
-			continue;
-		}
-		if (count % 3 == 1) {
-			version = atoi(mani_token);
-		} else if (count % 3 == 2) {
-			int upd_check = update_check(client_mani, client_version, server_version, NULL, 0, mani_token);
-			if (print && upd_check == 4) {
-				write(fd_upd, "A\t", 2);
-				printf("A\t");
+			if (upd_check == -1) {
+				print = 0;
+				printf("CONFLICT: %s\n", path);
+			}
+			if (print) {
+				if (upd_check == 2) {
+					write(fd_upd, "M\t", 2);
+					printf("M\t");
+				} else if (upd_check == 3) {
+					write(fd_upd, "A\t", 2);
+					printf("A\t");
+				} else if (upd_check == 4) {
+					write(fd_upd, "D\t", 2);
+					printf("D\t");
+				}
 				char vers[sizeof(version) + 1];
 				snprintf(vers, sizeof(version), "%d", version);
 				vers[sizeof(version)] = '\0';
@@ -574,16 +572,9 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 				write(fd_upd, "\t", 1);
 				write(fd_upd, mani_token, strlen(mani_token));
 				write(fd_upd, "\t", 1);
-				hash_check = 1;
-				printf("%d\t%s\t", version, mani_token);
-			}
-			free(mani_token);
-		} else {
-			if (hash_check) {
-				hash_check = 0;
-				write(fd_upd, mani_token, strlen(mani_token));
+				write(fd_upd, hashed, strlen(hashed));
 				write(fd_upd, "\n", 1);
-				printf("%s\n", mani_token);
+				printf("%d\t%s\t%s\n", version, mani_token, hashed);	
 			}
 			free(mani_token);
 		}

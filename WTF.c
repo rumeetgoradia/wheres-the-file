@@ -496,6 +496,12 @@ int main (int argc, char **argv) {
 			free(to_send);
 			sending_size = sizeof(bytes_read);
 			to_send = (char *) malloc(sending_size);
+			if (bytes_read == 0) {
+				fprintf(stderr, "ERROR: Empty .Commit for project \"%s\".\n", argv[2]);
+/*				to_send = (char *) malloc(2);
+				snprintf(to_send, 2, "d"); */
+				return EXIT_FAILURE;
+			}
 			snprintf(to_send, sending_size, "%d", bytes_read);
 			sent = send(client_socket, to_send, sending_size, 0);
 			sending_size = bytes_read;
@@ -678,7 +684,7 @@ int main (int argc, char **argv) {
 			int sending_size = strlen(argv[2]) + 3;
 			char *to_send = (char *) malloc(sending_size);
 			snprintf(to_send, sending_size, "u:%s", argv[2]);
-			sent = send(client_socket, to_send, sending_size, 0);
+			sent = send(client_socket, to_send, sending_size, 0);	
 			char *recving = (char *) malloc(sizeof(int));
 			received = recv(client_socket, recving, sizeof(int), 0);	
 
@@ -749,7 +755,12 @@ int main (int argc, char **argv) {
 				remove(path_upd);
 				close(fd_upd);
 			} else {
-				printf(".Update created successfully for project \"%s\"!\n", argv[2]);
+				if (get_file_size(fd_upd) > 0) {
+					printf(".Update created successfully for project \"%s\"!\n", argv[2]);
+				} else {
+					printf("Already up to date!\n");
+					remove(path_upd);
+				}
 				free(recving);
 				free(to_send);
 				close(fd_upd);

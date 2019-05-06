@@ -352,7 +352,7 @@ void *handler(void *args) {
 		}
 		int comm_size = atoi(recving);
 		if (comm_size == 0) {
-			fprintf(stderr, "ERROR: Empty .Commit sent from client for project \"%s\".", token);
+			fprintf(stderr, "ERROR: Empty .Commit sent from client for project \"%s\".\n", token);
 			close(fd_mani);
 			free(recving);
 			free(to_send);
@@ -405,6 +405,12 @@ void *handler(void *args) {
 		char *recving = (char *) malloc(256);
 		received = recv(client_socket, recving, 256, 0);
 		int size = atoi(recving);
+		if (size == 0) {
+			fprintf(stderr, "ERROR: Client's .Commit is empty for project \"%s\".\n", token);
+			free(recving);
+			free(to_send);
+			pthread_exit(NULL);
+		}
 		free (recving);
 		recving = (char *) malloc(size + 1);
 		received = recv(client_socket, recving, size, 0);
