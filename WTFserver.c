@@ -446,6 +446,7 @@ void *handler(void *args) {
 			fprintf(stderr, "ERROR: Failed to open .Manifest for project \"%s\".\n", project);
 			pthread_exit(NULL);
 		}
+		printf("got here\n");
 		int mani_size = get_file_size(fd_mani);
 		if (mani_size < 0) {
 			free(recving);
@@ -470,7 +471,7 @@ void *handler(void *args) {
 		new_mani_buff += strlen(mani_token) + 1;
 		char write_to_new_mani[strlen(new_mani_buff) + 2 + sizeof(version + 1)];
 		snprintf(write_to_new_mani, strlen(new_mani_buff) + 2 + sizeof(version + 1), "%d\n%s", version + 1, new_mani_buff);
-		fd_mani = open(mani_path, O_RDWR | O_TRUNC);
+		fd_mani = open(mani_path, O_RDWR | O_TRUNC | O_APPEND);
 		write(fd_mani, write_to_new_mani, strlen(write_to_new_mani));
 		char vers_path[strlen(project) + 29 + sizeof(version)];
 		snprintf(vers_path, strlen(project) + 29 + sizeof(version), ".server_directory/%s/version%d", project, version);
@@ -500,8 +501,9 @@ void *handler(void *args) {
 		int len = strlen(comm_input);
 		int delete_check = 0, modify_check = 0;
 		char *file_path = NULL;
+		printf("about to start for loop\n");
 		for (j = 0; j < len; ++j) {
-			if (comm_input[i] != '\t' && comm_input[i] != '\n') {
+			if (comm_input[j] != '\t' && comm_input[j] != '\n' && comm_input[j] != '\0') {
 				++token_len;
 				continue;
 			} else {
@@ -514,6 +516,7 @@ void *handler(void *args) {
 				token_len = 0;
 				++count;
 			}
+			printf("%d\n", count);
 			if (count % 4 == 1) {
 				if (comm_token[0] == 'D') {
 					delete_check = 1;
@@ -521,6 +524,8 @@ void *handler(void *args) {
 					modify_check = 1;
 				}
 				free(comm_token);
+			} else if (count % 4 == 2) {
+				free(comm_token);	
 			} else if (count % 4 == 3) {
 				file_path = (char *) malloc(strlen(comm_token) + 1);
 				strncpy(file_path, comm_token, strlen(comm_token));
@@ -532,7 +537,7 @@ void *handler(void *args) {
 					remove(new_file_path);
 					remover(fd_mani, comm_token, write_to_new_mani);
 				} else {
-					free(recving);
+//					free(recving);
 					recving = (char *) malloc(sizeof(int));
 					received = recv(client_socket, recving, sizeof(int), 0);
 					if (recving[0] == 'x') {
@@ -574,7 +579,7 @@ void *handler(void *args) {
 					write(fd_new_file, recving, file_size);
 					snprintf(to_send, 2, "g");
 					sent = send(client_socket, to_send, 2, 0);
-					free(comm_token);
+//					free(comm_token);
 				}
 			} else if (count % 4 == 0) {
 				if (!delete_check) {

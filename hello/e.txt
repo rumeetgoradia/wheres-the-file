@@ -6,4 +6,4 @@ repository so it is possible to fetch old versions. Given the scope of this assi
 will have limited functionality and will only be able to roll back (most version control systems can fork a
 repository to have different development paths, and can roll forward undoing previous roll backs). This would
 allow a group to start coding, realize that the current design or direction is flawed and roll back to a previous
-rsion of the repository. The next check o
+sion of the repository. The next check o

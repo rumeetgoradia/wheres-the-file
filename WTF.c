@@ -549,31 +549,42 @@ int main (int argc, char **argv) {
 			write(fd_mani, write_to_new_mani, strlen(write_to_new_mani));
 			printf("wrote new_mani\n");
 			printf("comm input: %s\n", comm_input);
-			char temp[strlen(comm_input) + 1];
-			strcpy(temp, comm_input);
-			int comm_length = strlen(comm_input);
-			char *comm_token = strtok(temp, "\t\n");
-			int count = 1;
-			int remove_check = 0;
-			int update_check = 0;	
-			char *path;
-			int bytes = 0;
-			while (comm_token != NULL) {
-				printf("comm token: %s\n", comm_token);
-				if (count % 4 == 1){
-					if (comm_token[0] == 'R') {
-						remove_check = 1;
-					} else if (comm_token[0] == 'U') {
-						update_check = 1;
+			int count = 0;
+			char *comm_token;
+			int j = 0, k = 0;
+			int last_sep = 0;
+			int token_len = 0;
+			int len = strlen(comm_input);
+			int delete_check = 0;
+			char *path = NULL;
+			for (j = 0; j < len; ++j) {	
+				if (comm_input[j] != '\t' && comm_input[j] != '\n') {
+					++token_len;
+					continue;
+				} else {
+					comm_token = (char *) malloc(token_len + 1);
+					for (k = 0; k < token_len; ++k) {
+						comm_token[k] = comm_input[last_sep + k];
 					}
+					comm_token[token_len] = '\0';
+					last_sep += token_len + 1;
+					token_len = 0;
+					++count;
+				}
+				if (count % 4 == 1) {
+					if (comm_token[0] == 'D') {
+						delete_check = 1;
+					}
+					free(comm_token);
+				} else if (count % 4 == 2) {
+					free(comm_token);
 				} else if (count % 4 == 3) {
-					if (!remove_check) {
+					if (!delete_check) {
 						free(to_send);
 						path = (char *) malloc(strlen(comm_token) + 1);
-						strncpy(path, comm_token, strlen(token));
+						strncpy(path, comm_token, strlen(comm_token));
 						int fd_file = open(comm_token, O_RDONLY);
-						int file_size = get_file_size(fd_file);
-						printf("%d, %d\n", fd_file, file_size);
+						int file_size = get_file_size(fd_file);	
 						if (fd_file < 0 || file_size < 0) {
 							to_send = (char *) malloc(2);
 							snprintf(to_send, 2, "x");
@@ -583,6 +594,8 @@ int main (int argc, char **argv) {
 							close(fd_mani);
 							remove(comm_path);
 							close(fd_file);
+							free(path);
+							free(comm_token);
 							return EXIT_FAILURE;
 						}
 						sending_size = sizeof(file_size);
@@ -596,8 +609,8 @@ int main (int argc, char **argv) {
 						read(fd_file, to_send, sending_size);
 						sent = send(client_socket, to_send, sending_size, 0);
 						while (sent < file_size) {
-								int bytes_sent = send(client_socket, to_send + sent, sending_size, 0);
-								sent += bytes_sent;
+							int bytes_sent = send(client_socket, to_send + sent, sending_size, 0);
+							sent += bytes_sent;
 						}
 						printf("sent: %s", to_send);
 						received = recv(client_socket, recving, 2, 0);
@@ -609,35 +622,23 @@ int main (int argc, char **argv) {
 							free(path);
 							remove(comm_path);
 							close(fd_file);
+							free(comm_token);
 							return EXIT_FAILURE;
 						}
 						close(fd_file);
+						free(comm_token);
 					}
-				} else if (count % 4 == 0) {
-					char hashed[strlen(token)];
-					strcpy(hashed, token);
-					if (!remove_check) {
-						if (update_check) {
-							add(fd_mani, hashed, path, write_to_new_mani, 1);
-							update_check = 0;
-						} else {
-							add(fd_mani, hashed, path, write_to_new_mani, 0);
-						}
-						free(path);
+				} else if (count % 4 == 0) {	
+					char hashed[strlen(comm_token) + 1];
+					strcpy(hashed, comm_token);
+					hashed[strlen(comm_token)] = '\0';
+					if (!delete_check) {
+						add(fd_mani, hashed, path, write_to_new_mani, 1);
 					} else {
-						remove_check = 0;
+						delete_check = 0;
 					}
-				}
-				bytes += strlen(token) + 1;
-				comm_token = strtok(NULL, "\t\n");
-				++count;
-				if (comm_token == NULL) {
-					if (bytes < comm_length) {
-						strcpy(temp, comm_input);
-						comm_token = strtok(&(temp[bytes - 1]), "\t\n");
-					} else {
-						break;
-					}
+					free(comm_token);
+					free(path);
 				}
 			}
 			received = recv(client_socket, recving, 2, 0);
