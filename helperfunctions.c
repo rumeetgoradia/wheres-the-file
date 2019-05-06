@@ -37,7 +37,7 @@ unsigned int tokenize(char *path, char *input, char *hash, int flag, int *versio
 			*version = atoi(token);
 		}
 		if (check == 1) {
-			if (strcmp(token, hash) == 0) {
+			if (strcmp(token, hash) == 0 && !flag) {
 					return -1;
 			} else {
 				return byte_count - (flag * check_bytes) - (flag * prev_bytes);
@@ -61,12 +61,9 @@ int add(int fd_manifest, char *hashcode, char *path, char *input, int flag) {
 		fprintf(stderr, "ERROR: Could not read .Manifest.\n");
 		return -1;
 	}
-	if (move == -1) {
+	if (move == -1 && !flag) {
 		fprintf(stderr, "ERROR: File already up-to-date in .Manifest.\n");
 		return -1;
-	}
-	if (move == -2) {
-		return -2;
 	}
 
 /*	char buff[move];
@@ -142,7 +139,7 @@ int remove_dir(char *path) {
 				ret = remove(new_path);
 			}
 			if (ret < 0) {
-				fprintf(stderr, "ERROR: Failed to delete \"%s\" from server.", new_path);
+				fprintf(stderr, "ERROR: Failed to delete \"%s\" from server. It is probably currently in use.\n", new_path);
 				return ret;
 			}
 		}
@@ -199,7 +196,7 @@ int commit_check(int version, char *path, char *hash, char *other_mani) {
 	return 2;
 } 
 
-int commit(int fd_comm, char *client_mani, char *server_mani) {
+int commit(int fd_comm, char *client_mani, char *server_mani) {	
 	int len = strlen(client_mani);
 	char temp[len + 1];
 	strcpy(temp, client_mani);
@@ -230,6 +227,7 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 			int size = get_file_size(fd);
 			path = malloc(strlen(token) + 1);
 			snprintf(path, strlen(token) + 1, "%s", token);
+			path[strlen(token)] = '\0';
 			if (fd < 0 || size < 0) {
 				delete_check = 1;	
 				bytes += strlen(token) + 1;
@@ -237,6 +235,7 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 			}
 			char buff[size + 1];
 			read(fd, buff, size);
+			buff[size] = '\0';
 			SHA256(buff, strlen(buff), hash);
 			int i = 0;
 			for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
@@ -248,7 +247,7 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 			if (token_equals_dashes != 0 && delete_check) {
 				free(path);
 				return -1;
-			} else if (!token_equals_dashes && delete_check) {
+			} else if (token_equals_dashes == 0) {
 				delete_check = 0;
 				strcpy(hashed, dashes);
 				comm_check = commit_check(version - 1, path, dashes, server_mani);
@@ -258,10 +257,10 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 			int token_equals_hash = strcmp(token, hashed);
 			if (comm_check == -1) {
 				return -1;
-			}
+			}	
 			if (token_equals_dashes == 0 && comm_check == 1) {
 				write(fd_comm, "D\t", 2);
-			} else if (token_equals_hash != 0 && token_equals_hash != 0 && comm_check == 2) {
+			} else if (token_equals_dashes != 0 && comm_check == 2) {
 				write(fd_comm, "A\t", 2);
 			} else if (token_equals_hash != 0 && comm_check != 2) {
 				write(fd_comm, "M\t", 2);

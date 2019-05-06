@@ -94,6 +94,9 @@ int main (int argc, char **argv) {
 			int size = get_file_size(fd_file);
 			char input[size + 1];
 			read(fd_file, input, size);
+			input[size] = '\0';
+/*			int fd = open("test.txt", O_CREAT | O_WRONLY, 0744);
+			write(fd, input, size); */
 			unsigned char hash[SHA256_DIGEST_LENGTH];
 			SHA256(input, strlen(input), hash);
 			char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
@@ -358,8 +361,10 @@ int main (int argc, char **argv) {
 			char get_version[256];
 			strcpy(get_version, client_mani_input);
 			char *vers_token = strtok(get_version, "\n");
-			int client_mani_vers = atoi(vers_token);			
-			vers_token = strtok(server_mani_input, "\n");
+			int client_mani_vers = atoi(vers_token);
+			char serv_temp[strlen(server_mani_input)];
+			strcpy(serv_temp, server_mani_input);			
+			vers_token = strtok(serv_temp, "\n");
 
 			if (client_mani_vers != atoi(vers_token)) {
 				fprintf(stderr, "ERROR: Local \"%s\" project has not been updated.\n", argv[2]);
@@ -406,7 +411,7 @@ int main (int argc, char **argv) {
 			free(to_send);
 			int comm_size = get_file_size(fd_comm);
 			if (comm_size < 0) {
-                                printf("ERROR: Could not get size of .Commit for \"%s\" project.\n", argv[2]);
+                                fprintf(stderr, "ERROR: Could not get size of .Commit for \"%s\" project.\n", argv[2]);
                                 free(to_send);
                                 to_send = (char *) malloc(2);
                                 snprintf(to_send, 2, "x");
@@ -422,6 +427,15 @@ int main (int argc, char **argv) {
 			to_send = (char *) malloc(sending_size + 1);
 			snprintf(to_send, sending_size, "%d", comm_size);
 			sent = send(client_socket, to_send, sending_size, 0);
+			if (comm_size == 0) {
+				fprintf(stderr, "ERROR: .Commit for project \"%s\" is empty.\n", argv[2]);
+				free(to_send);
+				ree(recving);
+				free(client_mani);
+				free(path_comm);
+				close(fd_comm);
+				return EXIT_FAILURE;
+			}
 			lseek(fd_comm, 0, SEEK_SET);
 			free(to_send);
 			to_send = (char *) malloc(comm_size);
@@ -530,7 +544,7 @@ int main (int argc, char **argv) {
 			char *mani_token = strtok(mani_buff, "\n");
 			int mani_vers = atoi(mani_token);
 			new_mani_buff += strlen(mani_token) + 1;
-			char write_to_new_mani[strlen(new_mani_buff) + 2 + sizeof(mani_vers + 1)];
+			char *write_to_new_mani = malloc(strlen(new_mani_buff) + 2 + sizeof(mani_vers + 1));
 			snprintf(write_to_new_mani, strlen(new_mani_buff) + 2 + sizeof(mani_vers + 1), "%d\n%s", mani_vers + 1, new_mani_buff);
 			fd_mani = open(mani_path, O_RDWR | O_TRUNC);
 			write(fd_mani, write_to_new_mani, strlen(write_to_new_mani));
@@ -617,6 +631,14 @@ int main (int argc, char **argv) {
 					hashed[strlen(comm_token)] = '\0';
 					if (!delete_check) {
 						add(fd_mani, hashed, path, write_to_new_mani, 1);
+						int new_mani_size = get_file_size(fd_mani);
+						free(write_to_new_mani);
+						write_to_new_mani = (char *) malloc(new_mani_size + 1);
+						lseek(fd_mani, 0, 0);
+						int br = read(fd_mani, write_to_new_mani, new_mani_size);
+						printf("new mani size: %d, br: %d\n", new_mani_size, br);
+						write_to_new_mani[br] = '\0';
+						printf("%s\n", write_to_new_mani);
 					} else {
 						delete_check = 0;
 					}
@@ -624,6 +646,18 @@ int main (int argc, char **argv) {
 					free(path);
 				}
 			}
+			if (token_len > 0) {
+				comm_token = (char *) malloc(token_len + 1);
+				for (j = 0; j < token_len; ++j) {
+					comm_token[j] = comm_input[last_sep + j];
+				}
+				comm_token[token_len] = '\0';
+				if (!delete_check) {
+					add(fd_mani, comm_token, path, write_to_new_mani, 1);
+        	                }
+                        	free(comm_token);
+	                        free(path);
+                	}
 			received = recv(client_socket, recving, 2, 0);
 			if (recving[0] == 'g') {
 				printf("Push succeeded!\n");

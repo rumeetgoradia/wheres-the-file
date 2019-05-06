@@ -351,7 +351,13 @@ void *handler(void *args) {
 			pthread_exit(NULL);
 		}
 		int comm_size = atoi(recving);
-
+		if (comm_size == 0) {
+			fprintf(stderr, "ERROR: Empty .Commit sent from client for project \"%s\".", token);
+			close(fd_mani);
+			free(recving);
+			free(to_send);
+			pthread_exit(NULL);
+		}
 		free(recving);
 		recving = (char *) malloc(comm_size + 1);
 		received = recv(client_socket, recving, comm_size, 0);
@@ -383,6 +389,7 @@ void *handler(void *args) {
 		free(recving);
 		free(to_send);
 		close(fd_comm_server);
+		close(fd_mani);
 		printf("Commit successful.\n");
 	} else if (token[0] == 'p') {
 		token = strtok(NULL, ":");
@@ -457,9 +464,9 @@ void *handler(void *args) {
 		char *mani_token = strtok(mani_buff, "\n");
 		int version = atoi(mani_token);	
 		new_mani_buff += strlen(mani_token) + 1;
-		char write_to_new_mani[strlen(new_mani_buff) + 2 + sizeof(version + 1)];
+		char *write_to_new_mani = malloc(strlen(new_mani_buff) + 2 + sizeof(version + 1));
 		snprintf(write_to_new_mani, strlen(new_mani_buff) + 2 + sizeof(version + 1), "%d\n%s", version + 1, new_mani_buff);
-		fd_mani = open(mani_path, O_RDWR | O_TRUNC | O_APPEND);
+		fd_mani = open(mani_path, O_RDWR | O_TRUNC);
 		write(fd_mani, write_to_new_mani, strlen(write_to_new_mani));
 		char vers_path[strlen(project) + 29 + sizeof(version)];
 		snprintf(vers_path, strlen(project) + 29 + sizeof(version), ".server_directory/%s/version%d", project, version);
@@ -569,12 +576,15 @@ void *handler(void *args) {
 				}
 			} else if (count % 4 == 0) {
 				if (!delete_check) {
-					if (modify_check) {
-						add(fd_mani, comm_token, file_path, write_to_new_mani, 1);
-						modify_check = 0;
-					} else {
-						add(fd_mani, comm_token, file_path, write_to_new_mani, 0);
-					}
+					add(fd_mani, comm_token, file_path, write_to_new_mani, 1);
+					int new_mani_size = get_file_size(fd_mani);
+					free(write_to_new_mani);
+					write_to_new_mani = (char *) malloc(new_mani_size + 1);
+					lseek(fd_mani, 0, 0);
+					int br = read(fd_mani, write_to_new_mani, new_mani_size);
+					printf("new mani size: %d, br: %d\n", new_mani_size, br);
+					write_to_new_mani[br] = '\0';
+					printf("%s\n", write_to_new_mani);
 				} else {
 					delete_check = 0;
 				}	
