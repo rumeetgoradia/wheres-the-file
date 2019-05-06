@@ -761,12 +761,195 @@ int main (int argc, char **argv) {
 					printf(".Update created successfully for project \"%s\"!\n", argv[2]);
 				} else {
 					printf("Already up to date!\n");
-					remove(path_upd);
 				}
 				free(recving);
 				free(to_send);
 				close(fd_upd);
 			}
+		} else if (strcmp(argv[1], "upgrade") == 0) {
+			if (argc < 3) {
+				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
+				return EXIT_FAILURE;
+			}
+			if (argc > 3) {
+				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name.\n");
+				return EXIT_FAILURE;
+			}
+			int sending_size = 3 + strlen(argv[2]);
+			char *to_send = (char *) malloc(sending_size);
+			snprintf(to_send, sending_size, "g:%s", argv[2]);
+			sent = send(client_socket, to_send, sending_size, 0);
+			char *recving = (char *) malloc(2);
+			received = recv(client_socket, recving, 2, 0);
+			if (recving[0] == 'b') {
+				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
+				return EXIT_FAILURE;
+			}
+			char *path_upd = (char * ) malloc(strlen(argv[2]) + 9);
+			snprintf(path_upd, strlen(argv[2]) + 9, "%s/.Update", argv[2]);
+			int fd_upd = open(path_upd, O_RDWR);
+			int size_upd = get_file_size(fd_upd);
+			if (fd_upd < 0 || size_upd < 0) {
+				fprintf(stderr, "ERROR: Could not open or create .Update for project \"%s\". Please perform an update first.\n", argv[2]);
+				free(to_send);
+				to_send = (char *) malloc(2);
+				snprintf(to_send, 2, "x");
+				sent = send(client_socket, to_send, 2, 0);
+                                free(recving);
+				free(path_upd);
+				close(fd_upd);
+				return EXIT_FAILURE;
+			}
+			if (size_upd == 0) {
+				printf(".Update is empty, project \"%s\" up-to-date.\n");
+				free(to_send);
+				to_send = (char *) malloc(2);
+				snprintf(to_send, 2, "b");
+				sent = send(client_socket, to_send, 2, 0);
+				free(recving);
+				free(path_upd);
+				free(to_send);
+				close(fd_upd);
+			}
+			free(to_send);
+			sending_size = sizeof(size_upd);
+			to_send = (char *) malloc(sending_size);
+			snprintf(to_send, sending_size, "%d", size_upd);
+			sent = send(client_socket, to_send, sending_size, 0);
+			free(to_send);
+			sending_size = size_upd;
+			to_send = (char *) malloc(sending_size + 1);
+			int br = read(fd_upd, to_send, sending_size);
+			to_send[br] = '\0';
+			sent = send(client_socket, to_send, sending_size, 0);
+			while (sent < br) {
+				int bs = send(client_socket, to_send + sent, sending_size, 0);
+				sent += bs;
+			}
+			char upd_input[br + 1];
+			strcpy(upd_input, to_send);
+			upd_input[br] = '\0';
+			int count = 0;
+			char *upd_token;
+			int j = 0, k = 0;
+			int last_sep = 0;
+			int token_len = 0;
+			int len = strlen(upd_input);
+			int delete_check = 0, modify_check = 0;
+			char *file_path = NULL;
+			for (j = 0; j < len; ++j) {
+				if (upd_input[j] != '\t' && upd_input[j] != '\n') {
+					++token_len;
+					continue;
+				} else {
+					upd_token = (char *) malloc(token_len + 1);
+					for (k = 0; k < token_len; ++k) {
+						upd_token[k] = upd_input[last_sep + k];
+					}
+					upd_token[token_len] = '\0';
+					last_sep += token_len + 1;
+					token_len = 0;
+					++count;
+				}
+				if (count % 4 == 1) {
+					if (upd_token[0] == 'D') {
+						delete_check = 1;
+					} else if (upd_token[0] == 'M') {
+						modify_check = 1;
+					}
+					free(upd_token);
+				} else if (count % 4 == 2) {
+					free(upd_token);	
+				} else if (count % 4 == 3) {
+/*				file_path = (char *) malloc(strlen(upd_token) + 1);
+				strncpy(file_path, comm_token, strlen(upd_token));
+				int path_len = strlen(new_vers_path) + 1 + strlen(file_path);
+				char new_file_path[path_len + 1];
+				snprintf(new_file_path, path_len, "%s/%s", new_vers_path, comm_token); */
+					if (delete_check == 1) {
+						remove(upd_token);
+/*						remover(fd_mani, comm_token, write_to_new_mani); */
+					} else {
+						free(recving);
+						recving = (char *) malloc(sizeof(int));
+						received = recv(client_socket, recving, sizeof(int), 0);
+						if (recving[0] == 'x') {
+							fprintf(stderr, "ERROR: Server could not send coneents of \"%s\".\n", upd_token);
+							free(file_path);
+							free(upd_token);
+							close(fd_upd);
+							return EXIT_FAILURE;
+						}
+						int file_size = atoi(recving);
+						free(recving);
+						recving = (char *) malloc(file_size + 1);
+						received = recv(client_socket, recving, file_size, 0);
+						while (received < file_size) {
+							int brecv = recv(client_socket, recving + received, file_size, 0);
+							received += brecv;
+						}
+						recving[received] = '\0';
+						int fd_file = open(upd_token, O_WRONLY | O_TRUNC);
+						if (!modify_check) {
+							fd_file = open(upd_token, O_WRONLY | O_CREAT, 0744);
+						}
+						if (fd_file < 0) {
+							free(recving);
+							snprintf(to_send, 2, "x");
+							sent = send(client_socket, to_send, 2, 0);
+							free(to_send);
+							fprintf(stderr, "ERROR: Failed to open \"%s\" file in project \"%s\".\n", upd_token, argv[2]);
+							free(upd_token);
+							close(fd_file);
+							close(fd_upd);
+						}
+						write(fd_file, recving, strlen(recving));
+						snprintf(to_send, 2, "g");
+						sent = send(client_socket, to_send, 2, 0); 
+						free(upd_token);
+					}
+				} else {
+					free(upd_token);
+				}
+			}
+			close(fd_upd);
+			remove(path_upd);
+			free(recving);
+			recving = (char *) malloc(sizeof(int) + 1);
+			received = recv(client_socket, recving, sizeof(int), 0);
+			recving[received] = '\0';
+			if (recving[0] == 'x') {
+				fprintf(stderr, "ERROR: Server unable to send .Manifest for project \"%s\".\n", argv[2]);
+				free(recving);
+				free(to_send);
+				return EXIT_FAILURE;
+			}
+			int mani_size = atoi(recving);
+			free(recving);
+			recving = (char *) malloc(mani_size + 1);
+			received = recv(client_socket, recving, mani_size, 0);
+			while (received < mani_size) {
+				int brecv = recv(client_socket, recving + received, mani_size, 0);
+				received += brecv;
+			}
+			char path_mani[strlen(argv[2]) + 11];
+			snprintf(path_mani, strlen(argv[2]) + 11, "%s/.Manifest", argv[2]);
+			int fd_mani = open(path_mani, O_WRONLY | O_TRUNC);
+			if (fd_mani < 0) {
+				free(recving);
+				snprintf(to_send, 2, "x");
+				sent = send(client_socket, to_send, 2, 0);
+				free(to_send);
+				fprintf(stderr, "ERROR: Unable to open .Manifest for project \"%s\".\n", argv[2]);
+				close(fd_mani);
+			}
+			write(fd_mani, recving, mani_size);
+			close(fd_mani);
+			snprintf(to_send, 2, "g");
+			sent = send(client_socket, to_send, 2, 0);
+			free(recving);
+			free(to_send);
+			printf("Upgrade successful!\n");
 		}
 		close(client_socket);
 	}

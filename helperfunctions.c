@@ -567,7 +567,7 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 					write(fd_upd, "D\t", 2);
 					printf("D\t");
 				}
- 				if (upd_check > 1) {
+ 				if (upd_check > 1 && upd_check < 5) {
 					char vers[sizeof(version) + 1];
 					snprintf(vers, sizeof(version), "%d", version);
 					vers[sizeof(version)] = '\0';
