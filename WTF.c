@@ -672,7 +672,7 @@ int main (int argc, char **argv) {
 				printf("Push failed.\n");
 				remove(comm_path);
 			}
-		} else if (strcmp(argv[2], "update") == 0) {
+		} else if (strcmp(argv[1], "update") == 0) {
 			if (argc < 3) {
 				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
 				return EXIT_FAILURE;
@@ -680,11 +680,11 @@ int main (int argc, char **argv) {
 			if (argc > 3) {
 				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name.\n");
 				return EXIT_FAILURE;
-			}
+			}	
 			int sending_size = strlen(argv[2]) + 3;
 			char *to_send = (char *) malloc(sending_size);
 			snprintf(to_send, sending_size, "u:%s", argv[2]);
-			sent = send(client_socket, to_send, sending_size, 0);	
+			sent = send(client_socket, to_send, sending_size, 0);
 			char *recving = (char *) malloc(sizeof(int));
 			received = recv(client_socket, recving, sizeof(int), 0);	
 
@@ -709,7 +709,7 @@ int main (int argc, char **argv) {
 			strcpy(server_mani_input, recving);
 			server_mani_input[received] = '\0';
 			char serv_temp[strlen(server_mani_input)];
-			strcpy(serv_temp, server_mani_input);			
+			strcpy(serv_temp, recving);	
 			char *vers_token = strtok(serv_temp, "\n");
 			int server_version = atoi(vers_token);
 			char *client_mani = (char *) malloc(strlen(argv[2]) + 11);
@@ -724,9 +724,11 @@ int main (int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 			char client_mani_input[client_mani_size];
-			read(fd_mani, client_mani_input, client_mani_size);
-			char client_temp[strlen(server_mani_input)];
+			int bytes_read = read(fd_mani, client_mani_input, client_mani_size);
+			client_mani_input[bytes_read] = '\0';
+			char client_temp[bytes_read + 1];
 			strcpy(client_temp, client_mani_input);
+			client_temp[bytes_read] = '\0';
 			vers_token = strtok(client_temp, "\n");
 			int client_version = atoi(vers_token);
 			lseek(fd_mani, 0, 0);

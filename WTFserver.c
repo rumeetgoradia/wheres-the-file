@@ -166,7 +166,7 @@ void *handler(void *args) {
 	received = recv(client_socket, recv_buffer, BUFSIZ - 1, 0);
 	recv_buffer[received] = '\0';
 	if (received <= 0) {
-		fprintf(stderr, "ERROR: Server-side recv() failed.\n");
+		fprintf(stderr, "ERROR: Server's recv() failed.\n");
 		pthread_exit(NULL);
 	}
 	char *token;
