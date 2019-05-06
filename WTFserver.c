@@ -201,6 +201,11 @@ void *handler(void *args) {
 			int fd_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0744);
 			write(fd_mani, "0\n", 2);
 			close(fd_mani);
+			char hist_path[strlen(new_proj_path) + 10];
+                        snprintf(hist_path, strlen(new_proj_path) + 10, "%s.History", new_proj_path);
+                        int fd_hist = open(hist_path, O_CREAT | O_WRONLY, 0744);
+                        write(fd_hist, "create\n0\n\n", 10);
+                        close(fd_hist);
 			free(new_mani_path);
 			free(new_proj_path);
 			sending[0] = 'c';
@@ -404,8 +409,11 @@ void *handler(void *args) {
 		token = strtok(NULL, ":");
 		char project[strlen(token) + 1];
 		strcpy(project, token);
+		project[strlen(token)] = '\0';
+		char *proj_path = (char *) malloc(strlen(token) + 22);
+		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
 		char *to_send = (char *) malloc(2);
-		if (check_dir(project) == -1) {
+		if (check_dir(proj_path) == -1) {
 			snprintf(to_send, 2, "b");
 		} else {
 			snprintf(to_send, 2, "g");
@@ -429,8 +437,9 @@ void *handler(void *args) {
 		}
 		recving[received] = '\0';
 		/* Got the client's commit */
-		char comm_input[strlen(recving)];
+		char comm_input[strlen(recving) + 1];
 		strcpy(comm_input, recving);
+		comm_input[strlen(recving)] = '\0';
 		int comm_check = push_check(project, comm_input);
 		if (comm_check == -1) {
 			free(recving);
@@ -641,6 +650,22 @@ void *handler(void *args) {
 		write(fd_new_mani, write_to_new_mani, strlen(write_to_new_mani));
 		close(fd_new_mani);
 		close(fd_mani);
+		char hist_path[strlen(project) + 30];
+                snprintf(hist_path, strlen(project) + 31, ".server_directory/%s/.History", project);
+		int fd_hist = open(hist_path, O_WRONLY | O_APPEND);
+		write(fd_hist, "push\n", 5);
+		char temp[sizeof(version + 1) + 1];
+		snprintf(temp, sizeof(version + 1), "%d", version + 1);
+		write(fd_hist, temp, strlen(temp));
+		write(fd_hist, "\n", 1);
+		write(fd_hist, comm_input, strlen(comm_input));
+		write(fd_hist, "\n\n", 2);
+		close(fd_hist);
+		char new_commit_path[strlen(new_vers_path) + 10];
+		snprintf(new_commit_path, strlen(new_vers_path) + 10, "%s/.Commit", new_vers_path);
+		int fd_new_commit = open(new_commit_path, O_CREAT | O_WRONLY, 0744);
+		write(fd_new_commit, comm_input, strlen(comm_input));
+		close(fd_new_commit);
 		printf("Push complete!\n");
 		snprintf(to_send, 2, "g");
 		sent = send(client_socket, to_send, 2, 0);	
@@ -924,8 +949,74 @@ void *handler(void *args) {
 		snprintf(to_send, 2, "g");
 		sent = send(client_socket, to_send, 2, 0);
 		free(to_send);
+		/* Write to .History */
+		char hist_path[strlen(proj_path) + 10];
+		snprintf(hist_path, strlen(proj_path) + 10, "%s/.History", proj_path);
+		int fd_hist = open(hist_path, O_WRONLY | O_APPEND);
+		char temp[sizeof(req_vers) + 1];
+                snprintf(temp, sizeof(req_vers), "%d", req_vers);
+                write(fd_hist, "rollback ", 9);
+                write(fd_hist, temp, strlen(temp));
+                write(fd_hist, "\n", 1);
+                write(fd_hist, temp, strlen(temp));
+                write(fd_hist, "\n", 1);
+		if (req_vers > 0) {
+			char new_commit_path[strlen(proj_path) + 18 + sizeof(req_vers)];
+			snprintf(new_commit_path, strlen(proj_path) + 18 + sizeof(req_vers), "%s/version%d/.Commit", proj_path, req_vers);
+			int fd_new_comm = open(new_commit_path, O_RDONLY);
+			new_size = get_file_size(fd_new_mani);
+			char new_comm_input[new_size + 1];
+			br = read(fd_new_comm, new_comm_input, new_size);
+			new_comm_input[br] = '\0';
+			write(fd_hist, new_comm_input, strlen(new_comm_input));
+			write(fd_hist, "\n\n", 2);
+			close(fd_new_comm);
+		}
+		close(fd_hist);
+
+		/* Success */
 		printf("Rollback successful!\n");
-	}	
+	} else if (token[0] == 'h') {
+		token = strtok(NULL, ":");
+		char project[strlen(token) + 1];
+		strcpy(project, token);
+		project[strlen(token)] = '\0';
+		char *proj_path = (char *) malloc(strlen(token) + 22);
+		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
+		char *to_send = (char *) malloc(2);
+		if (check_dir(proj_path) == -1) {
+			snprintf(to_send, 2, "b");
+		} else {
+			snprintf(to_send, 2, "g");
+		}
+		sent = send(client_socket, to_send, 2, 0);
+		char hist_path[strlen(proj_path) + 10];
+		snprintf(hist_path, strlen(proj_path) + 10, "%s/.History", proj_path);
+		int fd_hist = open(hist_path, O_RDONLY);
+		int hist_size = get_file_size(fd_hist);
+		if (hist_size < 0 || fd_hist < 0)  {
+			fprintf(stderr, "ERROR: Cannot open .History for project \"%s\".\n", project);
+			snprintf(to_send, 2, "x");
+			sent = send(client_socket, to_send, 2, 0);  
+		}
+		free(to_send);
+		int sending_size = sizeof(hist_size);
+		to_send = (char *) malloc(sending_size + 1);
+		snprintf(to_send, sending_size, "%d", hist_size);
+		sent = (client_socket, to_send, sending_size, 0);
+		free(to_send);
+		sending_size = hist_size;
+		to_send = (char *) malloc(sending_size + 1);
+		int br = read(fd_hist, to_send, sending_size);
+		to_send[br] = '\0';
+		sent = send(client_socket, to_send, sending_size, 0);
+		while (sent < sending_size) {
+			int bs = send(client_socket, to_send + sent, sending_size, 0);
+			sent += bs;
+		}
+		close(fd_hist);
+		printf("Sent history of project \"%s\" to client!\n", project);
+	}
 	pthread_exit(NULL);
 }
 

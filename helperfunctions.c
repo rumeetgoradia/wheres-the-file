@@ -111,10 +111,10 @@ int remover(int fd_manifest, char *path, char *input) {
 int check_dir(char *path) {
 	DIR *dr = opendir(path);
 	if (dr == NULL) {
-		closedir(path);
+		closedir(dr);
 		return -1;	
 	}
-	closedir(path);
+	closedir(dr);
 	return 0;
 }
 

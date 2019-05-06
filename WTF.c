@@ -442,9 +442,8 @@ int main (int argc, char **argv) {
 			int bytes_read = read(fd_comm, to_send, comm_size); 
 			sent = send(client_socket, to_send, comm_size, 0);
 			received = recv(client_socket, recving, 2, 0);
-
 			if (recving[0] == 'b') {
-				fprintf(stderr, "ERROR: Server failed to create its own \".Commit\" file for \"%s\" project.\n", argv[2]);
+				fprintf(stderr, "ERROR: Server failed to create its own .Commit for project \"%s\".\n", argv[2]);
 				free(recving);
 				free(to_send);
 				return EXIT_FAILURE;
@@ -974,6 +973,43 @@ int main (int argc, char **argv) {
 			} else if (recving[0] == 'g') {
 				printf("Rollback successful!\n");
 			}
+		} else if (strcmp(argv[1], "history") == 0) {
+			if (argc < 3) {
+				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
+				return EXIT_FAILURE;
+			}
+			if (argc > 3) {
+				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name.\n");
+				return EXIT_FAILURE;
+			}
+			int sending_size = 3 + strlen(argv[2]);
+			char *to_send = (char *) malloc(sending_size);
+			snprintf(to_send, sending_size, "h:%s", argv[2]);
+			sent = send(client_socket, to_send, sending_size, 0);
+			char *recving = (char *) malloc(sizeof(int) + 1);
+			received = recv(client_socket, recving, sizeof(int), 0);
+			if (recving[0] == 'b' || recving[0] == 'x') {
+				if (recving[0] == 'b') {
+					fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
+				} else {
+					fprintf(stderr, "ERROR: Server could not send history of project \"%s\".\n", argv[2]);
+				}
+				free(to_send);
+				free(recving);
+				return EXIT_FAILURE;
+			}
+			recving[received] = '\0';
+			int size = atoi(recving);
+			free(recving);
+			recving = (char *) malloc(size + 1);
+			received = recv(client_socket, recving, size, 0);
+			while (received < size) {
+				int br = recv(client_socket, recving + received, size, 0);
+				received += br;
+			}
+			recving[received] = '\0';
+			/* Do stuff with recving */
+			printf("%s", recving);
 		}
 		close(client_socket);
 	}
