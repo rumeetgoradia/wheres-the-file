@@ -389,3 +389,54 @@ int dir_copy(char *src, char *dest) {
 	}
 	return 0;
 }
+
+int generate_hashes(int fd_mani, char *path, char *mani_input) {
+	DIR *dir;
+	struct dirent *de;
+	char *input = (char *) malloc(strlen(mani_input));
+	strcpy(input, mani_input);
+	int ret = 0;
+	unsigned char hash[SHA256_DIGEST_LENGTH];
+	char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
+	if ((dir = opendir(path)) == NULL) {
+		fprintf(stderr, "ERROR: Cannot open directory \"%s\".\n", src);
+		return -1;
+	}
+	while ((de = readdir(dir)) != NULL) {
+		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) {
+			continue;
+		}
+		char *new_path = (char *) malloc(strlen(path) + strlen(de->d_name) + 2);
+		snprintf(new_path, strlen(path) + strlen(de->d_name) + 2, "%s/%s", path, de->d_name);
+		if (de->d_type == DT_DIR) {
+			if (generate_hashes(fd_mani, new_path, input) != 0) {
+				ret = -1;
+			} else {
+				ret = 0;
+			}
+		} else {
+			int fd_file = open(new_path, O_RDONLY);
+			int file_size = get_file_size(fd_file);
+			if (file_size < 0 || fd_file < 0) {
+				return -1;
+			}
+			char file_input[file_size + 1];
+			read(fd_file, file_input, file_size);
+			file_input[file_size] = '\0';
+			SHA256(file_input, strlen(file_input), hash);
+			int i = 0;
+			for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
+				sprintf(hashed + (i * 2), "%02x", hash[i]);
+			}
+			add(fd_file, hashed, new_path, input, 0);
+			lseek(fd_file, 0, 0);
+			free(input);
+			int new_mani_size = get_file_size(fd_mani);
+			input = (char *) malloc(new_mani_size + 1);
+			int br = read(fd_mani, input, new_mani_size);
+			input[br] = '\0';
+			free(new_path);
+		}
+	}
+	return ret;
+}

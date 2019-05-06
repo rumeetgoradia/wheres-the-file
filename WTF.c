@@ -666,6 +666,74 @@ int main (int argc, char **argv) {
 				printf("Push failed.\n");
 				remove(comm_path);
 			}
+		} else if (strcmp(argv[2], "update") == 0) {
+			if (argc < 3) {
+				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
+				return EXIT_FAILURE;
+			}
+			if (argc > 3) {
+				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name.\n");
+				return EXIT_FAILURE;
+			}
+			int sending_size = strlen(argv[2]) + 3;
+			char *to_send = (char *) malloc(sending_size);
+			snprintf(to_send, sending_size, "u:%s", argv[2]);
+			sent = send(client_socket, to_send, sending_size, 0);
+			char *recving = (char *) malloc(sizeof(int));
+			received = recv(client_socket, recving, sizeof(int), 0);	
+
+			if (recving[0] == 'x') {
+				fprintf(stderr, "ERROR: Failed to get server's .Manifest for project \"%s\" from server.\n", argv[2]);
+				free(to_send);
+				free(recving);
+				return EXIT_FAILURE;
+			} else if (recving[0] == 'b') {
+				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
+				free(to_send);
+				free(recving);
+				return EXIT_FAILURE;
+			}
+			int server_mani_size = atoi(recving);
+			free(recving);
+
+			recving = (char *) malloc(server_mani_size + 1);
+
+			received = recv(client_socket, recving, server_mani_size, 0);
+			char server_mani_input[received + 1];
+			strcpy(server_mani_input, recving);
+			server_mani_input[received] = '\0';
+			char serv_temp[strlen(server_mani_input)];
+			strcpy(serv_temp, server_mani_input);			
+			char *vers_token = strtok(serv_temp, "\n");
+			int server_version = atoi(vers_token);
+			char *client_mani = (char *) malloc(strlen(argv[2]) + 11);
+			snprintf(client_mani, strlen(argv[2]) + 11, "%s/.Manifest", argv[2]);
+			int fd_mani = open(client_mani, O_RDWR);
+			int client_mani_size = get_file_size(fd_mani);
+
+			if (fd_mani < 0 || client_mani_size < 0) {
+				fprintf(stderr, "ERROR: Unable to open local .Manifest for project \"%s\".\n", argv[2]);
+				free(to_send);
+				to_send = (char *) malloc(2);
+				snprintf(to_send, 2, "x");
+				sent = send(client_socket, to_send, 2, 0);
+				free(to_send);
+				free(recving);
+				free(client_mani);
+				return EXIT_FAILURE;
+			}
+			char client_mani_input[client_mani_size];
+			read(fd_mani, client_mani_input, client_mani_size);
+			char client_temp[strlen(server_mani_input)];
+			strcpy(client_temp, client_mani_input);
+			vers_token = strtok(client_temp, "\n");
+			int client_version = atoi(vers_token);
+			lseek(fd_mani, 0, 0);
+			
+			/* Set up .Update */
+			char *path_upd = (char * ) malloc(strlen(argv[2]) + 9);
+			snprintf(path_upd, strlen(argv[2]) + 9, "%s/.Update", argv[2]);
+			int fd_upd = open(path_upd, O_RDWR | O_CREAT | O_TRUNC, 0744);
 		}
 		close(client_socket);
 	}
