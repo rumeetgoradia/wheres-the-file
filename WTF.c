@@ -304,10 +304,10 @@ int main (int argc, char **argv) {
 			char *to_send = (char *) malloc(sending_size);
 			snprintf(to_send, sending_size, "o:%s", argv[2]);
 			sent = send(client_socket, to_send, sending_size, 0);
-			printf("got before first recv\n");
+
 			char *recving = (char *) malloc(sizeof(int));
 			received = recv(client_socket, recving, sizeof(int), 0);	
-			printf("received: %d -> %s\n", received, recving);
+
 			if (recving[0] == 'x') {
 				fprintf(stderr, "ERROR: Failed to get server's .Manifest for project \"%s\" from server.\n", argv[2]);
 				free(to_send);
@@ -321,19 +321,19 @@ int main (int argc, char **argv) {
 			}
 			int server_mani_size = atoi(recving);
 			free(recving);
-			printf("about to start recving again\n");
+
 			recving = (char *) malloc(server_mani_size + 1);
-			printf("gonna recv!\n");
+
 			received = recv(client_socket, recving, server_mani_size, 0);
 /*			while (received < server_mani_size) {
 				int bytes_recv = recv(client_socket, recving + bytes_recv, server_mani_size,0);
 				received += bytes_recv;
 			} */
-			printf("received: %s\n", recving);
+
 			char server_mani_input[received + 1];
 			strcpy(server_mani_input, recving);
 			server_mani_input[received] = '\0';
-			printf("got here\n");
+
 /*			if (iscntrl(server_mani_input[0])) {
 				server_mani_input = &(server_mani_input[1]);
 			} */
@@ -341,7 +341,7 @@ int main (int argc, char **argv) {
 			snprintf(client_mani, strlen(argv[2]) + 11, "%s/.Manifest", argv[2]);
 			int fd_mani = open(client_mani, O_RDWR);
 			int client_mani_size = get_file_size(fd_mani);
-			printf("got mani size\n");
+
 			if (fd_mani < 0 || client_mani_size < 0) {
 				fprintf(stderr, "ERROR: Unable to open local .Manifest for project \"%s\".\n", argv[2]);
 				free(to_send);
@@ -360,7 +360,7 @@ int main (int argc, char **argv) {
 			char *vers_token = strtok(get_version, "\n");
 			int client_mani_vers = atoi(vers_token);			
 			vers_token = strtok(server_mani_input, "\n");
-			printf("got past version check\n");
+
 			if (client_mani_vers != atoi(vers_token)) {
 				fprintf(stderr, "ERROR: Local \"%s\" project has not been updated.\n", argv[2]);
 				free(to_send);
@@ -375,8 +375,7 @@ int main (int argc, char **argv) {
 
 			/* Setup .Commit file path */
 			char *path_comm = (char *) malloc(strlen(argv[2]) + 10);
-			snprintf(path_comm, strlen(argv[2]) + 10, "%s/.Commit", argv[2]);
-			printf("commit path: %s\n", path_comm);
+			snprintf(path_comm, strlen(argv[2]) + 10, "%s/.Commit", argv[2]);	
 			int fd_comm = open(path_comm, O_RDWR | O_CREAT | O_TRUNC, 0744);	
 			if (fd_comm < 0) {
 				printf("ERROR: Could not open or create .Commit for project \"%s\".\n", argv[2]);
@@ -407,7 +406,7 @@ int main (int argc, char **argv) {
 				write(fd_comm, version, strlen(version));
 				free(version);
 			} */
-			printf("about to commit\n");
+
 			if (commit(fd_comm, client_mani_input, server_mani_input, fd_mani) == -1) {
 				fprintf(stderr, "ERROR: Local \"%s\" project is not up-to-date with server.\n", argv[2]);
 				free(to_send);
@@ -419,7 +418,7 @@ int main (int argc, char **argv) {
                                 free(client_mani);
 				return EXIT_FAILURE;
 			}
-			printf("past commit\n");
+
 			free(to_send);
 			int comm_size = get_file_size(fd_comm);
 			if (comm_size < 0) {
@@ -445,7 +444,7 @@ int main (int argc, char **argv) {
 			int bytes_read = read(fd_comm, to_send, comm_size); 
 			sent = send(client_socket, to_send, comm_size, 0);
 			received = recv(client_socket, recving, 2, 0);
-			printf("received: %s\n", recving);
+
 			if (recving[0] == 'b') {
 				fprintf(stderr, "ERROR: Server failed to create its own \".Commit\" file for \"%s\" project.\n", argv[2]);
 				free(recving);
@@ -462,9 +461,6 @@ int main (int argc, char **argv) {
 			int sending_size = 3 + strlen(argv[2]);
 			char *to_send = (char *) malloc(sending_size);
 			snprintf(to_send, sending_size, "p:%s", argv[2]);
-/*			int sending_size = 6 + strlen(argv[2]) + sizeof(size) + bytes_read;
- *						char to_send[sending_size];
- *									snprintf(to_send, sending_size, "p:%s:%d:%s", arg[2], bytes_read, comm_input); */
 			sent = send(client_socket, to_send, sending_size, 0);
 			while (sent < sending_size) {
 				int bytes_sent  = send(client_socket, to_send + sent, sending_size, 0);
@@ -556,12 +552,12 @@ int main (int argc, char **argv) {
 			char temp[strlen(comm_input) + 1];
 			strcpy(temp, comm_input);
 			int comm_length = strlen(comm_input);
-			char *comm_token = strtok(comm_input, "\t\n");
+			char *comm_token = strtok(temp, "\t\n");
 			int count = 1;
 			int remove_check = 0;
 			int update_check = 0;	
 			char *path;
-			int bytes = strlen(comm_token + 1);
+			int bytes = 0;
 			while (comm_token != NULL) {
 				printf("comm token: %s\n", comm_token);
 				if (count % 4 == 1){
@@ -636,7 +632,7 @@ int main (int argc, char **argv) {
 				comm_token = strtok(NULL, "\t\n");
 				++count;
 				if (comm_token == NULL) {
-					if (bytes < comm_length - 1) {
+					if (bytes < comm_length) {
 						strcpy(temp, comm_input);
 						comm_token = strtok(&(temp[bytes - 1]), "\t\n");
 					} else {

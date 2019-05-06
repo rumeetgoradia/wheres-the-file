@@ -1,0 +1,2 @@
+A version control system can also protect a team from development mishaps. If you accidentally delete a file,
+you can just update from the repository and get it r
