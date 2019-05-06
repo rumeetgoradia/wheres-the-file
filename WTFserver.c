@@ -428,7 +428,7 @@ void *handler(void *args) {
 			free(to_send);
 			pthread_exit(NULL);
 		}
-		free (recving);
+		free(recving);
 		recving = (char *) malloc(size + 1);
 		received = recv(client_socket, recving, size, 0);
 		while (received < size) {
@@ -436,10 +436,12 @@ void *handler(void *args) {
 			received += bytes_recv;
 		}
 		recving[received] = '\0';
+		printf("got comm input\n");
 		/* Got the client's commit */
 		char comm_input[strlen(recving) + 1];
 		strcpy(comm_input, recving);
 		comm_input[strlen(recving)] = '\0';
+		printf("entering comm check\n");
 		int comm_check = push_check(project, comm_input);
 		if (comm_check == -1) {
 			free(recving);
@@ -455,8 +457,10 @@ void *handler(void *args) {
 			free(to_send);
 			pthread_exit(NULL);
 		}
+		printf("got past comm check\n");
 		char mani_path[strlen(project) + 31];
 		snprintf(mani_path, strlen(project) + 31, ".server_directory/%s/.Manifest", project);
+		printf("created mani path\n");
 		int fd_mani = open(mani_path, O_RDWR);
 		if (fd_mani < 0) {
 			free(recving);
@@ -479,14 +483,13 @@ void *handler(void *args) {
 		}
 		snprintf(to_send, 2, "g");
 		sent = send(client_socket, to_send, 2, 0);
+		printf("about to mani\n");
 		char mani_buff[mani_size + 1];
 		int bytes_read = read(fd_mani, mani_buff, mani_size);
 		char mani_jic[mani_size + 1];
 		char *new_mani_buff = (char *) malloc(mani_size + 1);
 		strncpy(mani_jic, mani_buff, bytes_read);
-/*		mani_jic[bytes_read - 1] = '\0'; */
 		strncpy(new_mani_buff, mani_buff, bytes_read);
-/*		new_mani_buff[bytes_read - 1] = '\0'; */
 		char *mani_token = strtok(mani_buff, "\n");
 		int version = atoi(mani_token);	
 		new_mani_buff += strlen(mani_token) + 1;
@@ -500,6 +503,7 @@ void *handler(void *args) {
 		snprintf(new_vers_path, strlen(project) + 29 + sizeof(version + 1), ".server_directory/%s/version%d", project, version + 1);
 		mkdir(new_vers_path, 0744);
 		int dir_copy_check = dir_copy(vers_path, new_vers_path);
+		printf("about to dircheck\n");
 		if (dir_copy_check == 0) {
 			snprintf(to_send, 2, "g");
 			sent = send(client_socket, to_send, 2, 0);
@@ -554,8 +558,7 @@ void *handler(void *args) {
 				char new_file_path[path_len + 1];
 				snprintf(new_file_path, path_len, "%s/%s", new_vers_path, comm_token);
 				if (delete_check == 1) {
-					remove(new_file_path);
-					printf("new file: %s\nnew_mani: %s\n", new_file_path, write_to_new_mani);
+					remove(new_file_path);	
 					remover(fd_mani, file_path, write_to_new_mani);
 					int new_mani_size = get_file_size(fd_mani);
                                         free(write_to_new_mani);
@@ -644,6 +647,7 @@ void *handler(void *args) {
 			free(comm_token);
 			free(file_path);
 		}
+
 		char new_mani_path[strlen(new_vers_path) + 11];
 		snprintf(new_mani_path, strlen(new_vers_path) + 11, "%s/.Manifest", new_vers_path);
 		int fd_new_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0744);
@@ -985,11 +989,11 @@ void *handler(void *args) {
 		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
 		char *to_send = (char *) malloc(2);
 		if (check_dir(proj_path) == -1) {
+			fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", project);
 			snprintf(to_send, 2, "b");
-		} else {
-			snprintf(to_send, 2, "g");
+			sent = send(client_socket, to_send, 2, 0);
+			pthread_exit(NULL);
 		}
-		sent = send(client_socket, to_send, 2, 0);
 		char hist_path[strlen(proj_path) + 10];
 		snprintf(hist_path, strlen(proj_path) + 10, "%s/.History", proj_path);
 		int fd_hist = open(hist_path, O_RDONLY);
@@ -998,12 +1002,18 @@ void *handler(void *args) {
 			fprintf(stderr, "ERROR: Cannot open .History for project \"%s\".\n", project);
 			snprintf(to_send, 2, "x");
 			sent = send(client_socket, to_send, 2, 0);  
+			pthread_exit(NULL);
 		}
+		snprintf(to_send, 2, "g");
+		sent = send(client_socket, to_send, 1, 0);
 		free(to_send);
 		int sending_size = sizeof(hist_size);
+
 		to_send = (char *) malloc(sending_size + 1);
 		snprintf(to_send, sending_size, "%d", hist_size);
-		sent = (client_socket, to_send, sending_size, 0);
+		to_send[sending_size] = '\0';
+		sent = send(client_socket, to_send, sending_size, 0);
+
 		free(to_send);
 		sending_size = hist_size;
 		to_send = (char *) malloc(sending_size + 1);
@@ -1014,6 +1024,7 @@ void *handler(void *args) {
 			int bs = send(client_socket, to_send + sent, sending_size, 0);
 			sent += bs;
 		}
+
 		close(fd_hist);
 		printf("Sent history of project \"%s\" to client!\n", project);
 	}
