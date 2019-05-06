@@ -1,3 +1,10 @@
+/**********************************
+ * Aditi Singh and Rumeet Goradia 
+ * as2811, rug5
+ * Section 04
+ * CS214
+ **********************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
