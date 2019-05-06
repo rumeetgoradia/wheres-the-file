@@ -534,7 +534,14 @@ void *handler(void *args) {
 				snprintf(new_file_path, path_len, "%s/%s", new_vers_path, comm_token);
 				if (delete_check == 1) {
 					remove(new_file_path);
-					remover(fd_mani, comm_token, write_to_new_mani);
+					printf("new file: %s\nnew_mani: %s\n", new_file_path, write_to_new_mani);
+					remover(fd_mani, file_path, write_to_new_mani);
+					int new_mani_size = get_file_size(fd_mani);
+                                        free(write_to_new_mani);
+                                        write_to_new_mani = (char *) malloc(new_mani_size + 1);
+                                        lseek(fd_mani, 0, 0);
+                                        int br = read(fd_mani, write_to_new_mani, new_mani_size);
+                                        write_to_new_mani[br] = '\0';
 				} else {
 					free(recving);
 					recving = (char *) malloc(sizeof(int));
@@ -589,6 +596,7 @@ void *handler(void *args) {
 					lseek(fd_mani, 0, 0);
 					int br = read(fd_mani, write_to_new_mani, new_mani_size);
 					write_to_new_mani[br] = '\0';
+					modify_check = 0;
 				} else {
 					delete_check = 0;
 				}	
@@ -604,6 +612,12 @@ void *handler(void *args) {
 			comm_token[token_len] = '\0';
 			if (!delete_check) {
 				add(fd_mani, comm_token, file_path, write_to_new_mani, 1);
+				int new_mani_size = get_file_size(fd_mani);
+				free(write_to_new_mani);
+				write_to_new_mani = (char *) malloc(new_mani_size + 1);
+				lseek(fd_mani, 0, 0);
+				int br = read(fd_mani, write_to_new_mani, new_mani_size);
+				write_to_new_mani[br] = '\0';
 			}
 			free(comm_token);
 			free(file_path);
@@ -613,7 +627,6 @@ void *handler(void *args) {
 		int fd_new_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0744);
 		write(fd_new_mani, write_to_new_mani, strlen(write_to_new_mani));
 		close(fd_new_mani);
-		free(new_vers_path);
 		printf("Push complete!\n");
 		snprintf(to_send, 2, "g");
 		sent = send(client_socket, to_send, 2, 0);	

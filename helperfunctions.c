@@ -94,7 +94,7 @@ int add(int fd_manifest, char *hashcode, char *path, char *input, int flag) {
 int remover(int fd_manifest, char *path, char *input) {
 	int move = tokenize(path, input, dashes, 0, NULL);
 	if (move == strlen(input)) {
-		fprintf(stderr, "ERROR: File \"%s\" not in \".Manifest\" file.\n", path);
+		fprintf(stderr, "ERROR: File \"%s\" not in .Manifest file.", path);
 		return -1;
 	}
 	if (move == -2) {
