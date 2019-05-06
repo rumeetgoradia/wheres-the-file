@@ -651,7 +651,173 @@ void *handler(void *args) {
 			int bytes_sent = send(client_socket, to_send + sent, bytes_read, 0);
 			sent += bytes_sent;
 		} 
-	}
+	} else if (token[0] == 'g') {
+		token = strtok(NULL, ":");
+		char *proj_path = (char *) malloc(strlen(token) + 22);
+		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
+		if (check_dir(proj_path) == -1) {
+			char sending[2] = "b";
+			sent = send(client_socket, sending, 2, 0);
+			fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
+			free(proj_path);
+			pthread_exit(NULL);
+		}
+		free(proj_path);
+		char *to_send = (char *) malloc(2);
+		snprintf(to_send, 2, "g");
+		sent = send(client_socket, to_send, 2, 0);
+		char *recving = (char *) malloc(sizeof(int) + 1);
+		received = recv(client_socket, recving, sizeof(int), 0);
+		recving[received] = '\0';
+		if (recving[0] == 'x') {
+			fprintf(stderr, "ERROR: Client could not open local .Update for project \"%s\".\n", token);
+			free(recving);
+			free(to_send);
+			pthread_exit(NULL);
+		} else if (recving[0] == 'b') {
+			fprintf(stderr, "ERROR: Nothing to update for project \"%s\".\n", token);
+			free(recving);
+			free(to_send);
+			pthread_exit(NULL);
+		}
+		int upd_size = atoi(recving);
+		free(recving);
+		recving = (char *) malloc(upd_size + 1);
+		received = recv(client_socket, recving, upd_size, 0);
+		while (received < upd_size) {
+			int br = recv(client_socket, recving + received, upd_size, 0);
+			received += br;
+		}
+		recving[received] = '\0';
+		char upd_input[received + 1];
+		strcpy(upd_input, recving);
+		upd_input[received] = '\0';
+		/* open manifest */
+		char mani_path[strlen(token) + 11];
+		snprintf(mani_path, strlen(token) + 11, "%s/.Manifest", token);
+		int fd_mani = open(mani_path, O_RDONLY);
+		int mani_size = get_file_size(fd_mani);
+		if (fd_mani < 0 || mani_size < 0) {
+			fprintf(stderr, "ERROR: Cannot open .Manifest for project \"%s\".\n", token);
+			free(recving);
+			snprintf(to_send, 2, "m");
+			sent = send(client_socket, to_send, 2, 0);
+			free(to_send);
+			close(fd_mani);
+			pthread_exit(NULL);
+		}
+		char mani_input[mani_size + 1];
+		int bytes_read = read(fd_mani, mani_input, mani_size);
+		close(fd_mani);
+		mani_input[bytes_read] = '\0';
+		char mani_vers[mani_size + 1];
+		strcpy(mani_vers, mani_input);
+		char *vers_token = strtok(mani_vers, "\n");
+		int version = atoi(vers_token);
+		char vers_path[sizeof(version) + strlen(token) + 28];
+		snprintf(vers_path, sizeof(version) + strlen(token) + 28, ".server_directory/%s/version%d/", token, version);
+		int count = 0;
+		char *upd_token;
+		int j = 0, k = 0;
+		int last_sep = 0;
+		int token_len = 0;
+		int len = strlen(upd_input);
+		int delete_check = 0;
+		char *path = NULL;
+		for (j = 0; j < len; ++j) {	
+			if (upd_input[j] != '\t' && upd_input[j] != '\n') {
+				++token_len;
+				continue;
+			} else {
+				upd_token = (char *) malloc(token_len + 1);
+				for (k = 0; k < token_len; ++k) {
+					upd_token[k] = upd_input[last_sep + k];
+				}
+				upd_token[token_len] = '\0';
+				last_sep += token_len + 1;
+				token_len = 0;
+				++count;
+			}
+			if (count % 4 == 1) {
+				if (upd_token[0] == 'D') {
+					delete_check = 1;
+				}
+				free(upd_token);
+			} else if (count % 4 == 2) {
+				free(upd_token);
+			} else if (count % 4 == 3) {
+				path = (char *) malloc(strlen(upd_token) + 1);
+				strcpy(path, upd_token);
+				path[strlen(upd_token)] = '\0';
+				upd_token += strlen(token) + 1;
+				char new_file_path[strlen(upd_token) + strlen(vers_path) + 1];
+				snprintf(new_file_path, strlen(upd_token) + strlen(vers_path) + 1, "%s%s", vers_path, upd_token);
+				if (delete_check) {
+					free(upd_token);
+				} else {
+					int fd = open(new_file_path, O_RDONLY);
+					int size = get_file_size(fd);
+					if (fd < 0 || size < 0) {
+						fprintf(stderr, "ERROR: Unable to open \"%s\".\n", new_file_path);
+						snprintf(to_send, 2, "x");
+						sent = send(client_socket, to_send, 2, 0);
+						free(to_send);
+						free(recving);
+						free(upd_token);
+						close(fd);
+						pthread_exit(NULL);
+					}
+					free(to_send);
+					to_send = (char *) malloc(sizeof(size) + 1);
+					snprintf(to_send, sizeof(size) + 1, "%d", size);
+					to_send[sizeof(size)] = '\0';
+					sent = send(client_socket, to_send, sizeof(size) + 1, 0);
+					free(to_send);
+					to_send = (char *) malloc(size + 1);
+					int bytes_read = read(fd, to_send, size);
+					to_send[bytes_read] = '\0';
+					sent = send(client_socket, to_send, size, 0);
+					while (sent < size) {
+						int bs = send(client_socket, to_send + sent, size, 0);
+						sent += bs;
+					}
+					close(fd);
+					free(recving);
+					recving = (char *) malloc(2);
+					received = recv(client_socket, recving, 1, 0);
+					if (recving[0] == 'x') {
+						fprintf(stderr, "ERROR: Client failed to upgrade.\n");
+						free(to_send);
+						free(recving);
+						free(upd_token);
+						pthread_exit(NULL);
+					}
+				}
+			} else {
+				free(upd_token);
+			}
+		}
+		free(to_send);
+		to_send = (char *) malloc(sizeof(int));
+		snprintf(to_send, sizeof(int), "%d", mani_size);
+		free(to_send);
+		to_send = (char *) malloc(strlen(mani_input) + 1);
+		strcpy(to_send, mani_input);
+		to_send[strlen(mani_input)] = '\0';
+		sent = send(client_socket, to_send, mani_size, 0);
+		while (sent < mani_size) {
+			int bs = send(client_socket, to_send + sent, mani_size, 0);
+			sent += bs;
+		}
+		received = recv(client_socket, recving, 1, 0);
+		if (recving[0] == 'g') {
+			printf("Upgrade successful!\n");
+		} else {
+			printf("Upgrade failed.\n");
+		}
+		free(to_send);
+		free(recving);
+	}	
 	pthread_exit(NULL);
 }
 
