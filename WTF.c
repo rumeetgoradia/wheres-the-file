@@ -17,20 +17,20 @@
 
 int main (int argc, char **argv) {
 	if (argc < 2) {
-		printf("ERROR: Not enough arguments.\n");
+		fprintf(stderr, "ERROR: Not enough arguments.\n");
 		return EXIT_FAILURE;
 	}
 	if (strcmp("configure", argv[1]) == 0) {
 		if (argc < 4) {
-			printf("ERROR: Need IP address and port number.\n");
+			fprintf(stderr, "ERROR: Need IP address and port number.\n");
 			return EXIT_FAILURE;
 		} else if (argc > 4) {
-			printf("ERROR: Too many arguments.\n");
+			fprintf(stderr, "ERROR: Too many arguments.\n");
 			return EXIT_FAILURE;
 		}
 		int conf_file = open("./.configure", O_WRONLY | O_CREAT | O_TRUNC, 0644);
 		if (conf_file < 0) {
-			printf("ERROR: Could not open or create .configure file.\n");
+			fprintf(stderr, "ERROR: Could not open or create .configure file.\n");
 			return EXIT_FAILURE;
 		}
 		write(conf_file, argv[2], strlen(argv[2]));
@@ -40,21 +40,21 @@ int main (int argc, char **argv) {
 		close(conf_file);
 	} else if (strcmp("add", argv[1]) == 0 || strcmp("remove", argv[1]) == 0) {
 		if (argc < 4) {
-			printf("ERROR: Need project name and file name.\n");
+			fprintf(stderr, "ERROR: Need project name and file name.\n");
 			return EXIT_FAILURE;
 		} else if (argc > 4) {
-			printf("Error: Too many arguments.\n");
+			fprintf(stderr, "ERROR: Too many arguments.\n");
 			return EXIT_FAILURE;
 		}
 		/* Ensure first argument is a directory */
 		struct stat pstat;
 		if (stat(argv[2], &pstat) != 0) {
-			printf("ERROR: Project \"%s\" does not exist.\n", argv[2]);
+			fprintf(stderr, "ERROR: Project \"%s\" does not exist.\n", argv[2]);
 			return EXIT_FAILURE;
 		}
 		int is_file = S_ISREG(pstat.st_mode);
 		if (is_file != 0) {
-			printf("ERROR: First argument must be a directory.\n");
+			fprintf(stderr, "ERROR: First argument must be a directory.\n");
 			return EXIT_FAILURE;
 		}
 		/* Ensure file exists in project */
@@ -62,7 +62,7 @@ int main (int argc, char **argv) {
 		snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s/%s", argv[2], argv[3]);
 		int fd_file = open(path, O_RDONLY);
 		if (fd_file < 0 && strcmp("add", argv[1]) == 0) {
-			printf("ERROR: File \"%s\" does not exist in project \"%s\".\n", argv[3], argv[2]);
+			fprintf(stderr, "ERROR: File \"%s\" does not exist in project \"%s\".\n", argv[3], argv[2]);
 			free(path);
 			close(fd_file);
 			return EXIT_FAILURE;
@@ -72,7 +72,7 @@ int main (int argc, char **argv) {
 		snprintf(path_mani, strlen(argv[2]) + 11, "%s/.Manifest", argv[2]);
 		int fd_manifest = open(path_mani, O_RDWR | O_CREAT, 0744);
 		if (fd_manifest < 0) {
-			printf("ERROR: Could not open or create .Manifest.\n");
+			fprintf(stderr, "ERROR: Could not open or create .Manifest.\n");
 			free(path);
 			free(path_mani);
 			close(fd_manifest);
@@ -390,22 +390,6 @@ int main (int argc, char **argv) {
 				close(fd_comm);
 				return EXIT_FAILURE;
 			}
-/*			char version_buff[256];
-			int bytes_read = read(fd_comm, version_buff, 256);
-			char *version = NULL;
-			if (bytes_read == 0) {
-				version = (char *) malloc(2);
-				version[0] = '0';
-				write(fd_comm, "0\n", 2);	
-			} else {
-				vers_token = strtok(version_buff, "\n");
-				int vers = atoi(vers_token) + 1;
-				version = (char *) malloc((sizeof(vers) + 2));
-				snprintf(version, sizeof(vers) + 2, "%d\n", vers);
-				fd_comm = open(path_comm, O_RDWR | O_TRUNC | O_APPEND);
-				write(fd_comm, version, strlen(version));
-				free(version);
-			} */
 
 			if (commit(fd_comm, client_mani_input, server_mani_input, fd_mani) == -1) {
 				fprintf(stderr, "ERROR: Local \"%s\" project is not up-to-date with server.\n", argv[2]);
@@ -457,7 +441,14 @@ int main (int argc, char **argv) {
 			}
 			close(fd_comm);	
 		} else if (strcmp(argv[1], "push") == 0) {
-			/* ARG CHECK */
+			if (argc < 3) {
+				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
+				return EXIT_FAILURE;
+			}
+			if (argc > 3) {
+				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name.\n");
+				return EXIT_FAILURE;
+			}
 			int sending_size = 3 + strlen(argv[2]);
 			char *to_send = (char *) malloc(sending_size);
 			snprintf(to_send, sending_size, "p:%s", argv[2]);
@@ -498,8 +489,6 @@ int main (int argc, char **argv) {
 			to_send = (char *) malloc(sending_size);
 			snprintf(to_send, sending_size, "%s", comm_input);
 			sent = send(client_socket, to_send, sending_size, 0);
-			printf("sent: %s\n", to_send);
-			printf("comm: %s\n", comm_input);
 			received = recv(client_socket, recving, 1, 0);
 			if (recving[0] == 'x') {
 				fprintf(stderr, "ERROR: Server failed during .Commit lookup for project \"%s\".\n", argv[2]);
@@ -517,7 +506,6 @@ int main (int argc, char **argv) {
 				printf("Server initializing new version of project \"%s\".\n", argv[2]);
 			}
 			received = recv(client_socket, recving, 2, 0);
-			printf("received %d: %s\n", received, recving);
 			if (recving[0] == 'b') {
 				fprintf(stderr, "ERROR: Server could not instantiate new version of project \"%s\".\n", argv[2]);
 				return EXIT_FAILURE;
@@ -533,7 +521,6 @@ int main (int argc, char **argv) {
 				snprintf(to_send, 2, "x");
 				sent = send(client_socket, to_send, 2, 0);
 			}
-			printf("opened new mani\n");
 			char mani_buff[mani_size + 1];
 			bytes_read = read(fd_mani, mani_buff, mani_size);
 			char mani_jic[mani_size + 1];
@@ -547,8 +534,6 @@ int main (int argc, char **argv) {
 			snprintf(write_to_new_mani, strlen(new_mani_buff) + 2 + sizeof(mani_vers + 1), "%d\n%s", mani_vers + 1, new_mani_buff);
 			fd_mani = open(mani_path, O_RDWR | O_TRUNC);
 			write(fd_mani, write_to_new_mani, strlen(write_to_new_mani));
-			printf("wrote new_mani\n");
-			printf("comm input: %s\n", comm_input);
 			int count = 0;
 			char *comm_token;
 			int j = 0, k = 0;
@@ -602,7 +587,6 @@ int main (int argc, char **argv) {
 						to_send = (char *) malloc(sending_size);
 						snprintf(to_send, sending_size, "%d", file_size);
 						sent = send(client_socket, to_send, sending_size, 0);
-						printf("sent: %s", to_send);
 						free(to_send);
 						sending_size = file_size;
 						to_send = (char *) malloc(sending_size);
@@ -612,7 +596,6 @@ int main (int argc, char **argv) {
 							int bytes_sent = send(client_socket, to_send + sent, sending_size, 0);
 							sent += bytes_sent;
 						}
-						printf("sent: %s", to_send);
 						received = recv(client_socket, recving, 2, 0);
 						if (recving[0] == 'x') {
 							fprintf(stderr, "ERROR: Server could not open new copy of \"%s\" in project \"%s\".\n", comm_token, argv[2]);
