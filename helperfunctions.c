@@ -111,8 +111,10 @@ int remover(int fd_manifest, char *path, char *input) {
 int check_dir(char *path) {
 	DIR *dr = opendir(path);
 	if (dr == NULL) {
+		closedir(path);
 		return -1;	
 	}
+	closedir(path);
 	return 0;
 }
 
@@ -122,6 +124,7 @@ int remove_dir(char *path) {
 	int ret = -1;
 	if (!(dr = opendir(path))) {
 		fprintf(stderr, "ERROR: Could not open project \"%s\" on server's side.\n", (path + 17));
+		closedir(dr);
 		return ret;
 	}
 	struct dirent *de;
@@ -140,6 +143,7 @@ int remove_dir(char *path) {
 			}
 			if (ret < 0) {
 				fprintf(stderr, "ERROR: Failed to delete \"%s\" from server. It is probably currently in use.\n", new_path);
+				closedir(dr);
 				return ret;
 			}
 		}
@@ -149,6 +153,7 @@ int remove_dir(char *path) {
 	if (ret < 0) {
 		fprintf(stderr, "ERROR: Failed to delete \"%s\" from server.", path);
 	}
+	closedir(dr);
 	return ret;
 }
 
@@ -299,6 +304,7 @@ int delete_commits(char *proj_path, char *name) {
 	DIR *dir;
 	if (!(dir = opendir(proj_path))) {
 		fprintf(stderr, "ERROR: Could not open \"%s\" on server.\n", proj_path);
+		closedir(dir);
 		return -1;
 	}
 	struct dirent *de;
@@ -312,6 +318,7 @@ int delete_commits(char *proj_path, char *name) {
 			free(comm_path);
 		}
 	}
+	closedir(dir);
 	return 0;
 }
 
@@ -321,6 +328,7 @@ int push_check(char *project, char *comm_input) {
 	DIR *dir;
 	if (!(dir = opendir(path))) {
 		fprintf(stderr, "ERROR: Could not open project \"%s\" on server.\n", project);
+		closedir(dir);
 		return -1;
 	}
 	struct dirent *de;
@@ -344,11 +352,15 @@ int push_check(char *project, char *comm_input) {
 			input[size - 1] = '\0';
 			if (strcmp(input, comm_input) == 0) {
 				free(comm_path);
+				closedir(dir);
+				close(fd_comm);
 				return delete_commits(path, de->d_name);
 			}
+			close(fd_comm);
 			free(comm_path);
 		}
 	}
+	closedir(dir);
 	return 1;
 }
 
@@ -359,6 +371,7 @@ int dir_copy(char *src, char *dest) {
 	char temp_src[strlen(src) + 2]; */
 	if ((dir = opendir(src)) == NULL) {
 		fprintf(stderr, "ERROR: Cannot open directory \"%s\".\n", src);
+		closedir(dir);
 		return -1;
 	}
 	while ((de = readdir(dir)) != NULL) {
@@ -380,25 +393,36 @@ int dir_copy(char *src, char *dest) {
 			int fd_src_file = open(new_src_path, O_RDONLY);
 			if (fd_src_file < 0) {
 				fprintf(stderr, "ERROR: Cannot open file \"%s\".\n", new_src_path);
+				close(fd_src_file);
 				return -1;
 			}
 			int fd_dest_file = open(new_dest_path, O_CREAT | O_WRONLY, 0744);
 			if (fd_dest_file < 0) {
 				fprintf(stderr, "ERROR: Cannot create file \"%s\".\n", new_dest_path);
+				close(fd_dest_file);
+				close(fd_src_file);
+				closedir(dir);
 				return -1;
 			}
 			int size = get_file_size(fd_src_file);
 			if (size < 0) {
 				fprintf(stderr, "ERROR: Cannot get size of file \"%s\".\n", new_src_path);
+				close(fd_dest_file);
+				close(fd_src_file);
+				closedir(dir);
 				return -1;
 			}
 			char input[size + 1];
 			read(fd_src_file, input, size);
+			input[size] = '\0';
 			write(fd_dest_file, input, size);
+			close(fd_dest_file);
+			close(fd_src_file);
 		}
 		free(new_src_path);
 		free(new_dest_path);
 	}
+	closedir(dir);
 	return 0;
 }
 
@@ -603,6 +627,7 @@ int rollback(char *path, int version) {
 	DIR *dir;
 	if (!(dir = opendir(path))) {
 		fprintf(stderr, "ERROR: Could not open \"%s\" on server.\n", path);
+		closedir(dir);
 		return -1;
 	}
 	struct dirent *de;
@@ -623,6 +648,8 @@ int rollback(char *path, int version) {
 			int fd_mani = open(mani_path, O_RDONLY);
 			if (fd_mani < 0) {
 				fprintf(stderr, "ERROR: Not able to parse through versions.\n");
+				close(fd_mani);
+				closedir(dir);
 				return -1;
 			}
 			char mani_input[256];
@@ -632,7 +659,9 @@ int rollback(char *path, int version) {
 			if (this_vers > version) {
 				remove_dir(vers_path);
 			}
+			close(fd_mani);
 		}
 	}
+	closedir(dir);
 	return 0;
 }
