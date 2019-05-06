@@ -321,13 +321,6 @@ void *handler(void *args) {
 		to_send = (char *) malloc(sending_size + 1);
 		snprintf(to_send, sending_size, "%d", mani_size);
 		sent = send(client_socket, to_send, sending_size, 0);		
-/*		if (sent < 0) {
-			fprintf(stderr, "ERROR: Could not send size of \"%s\".\n", mani_path);
-			free(mani_path);
-			char sending[2] = "x";
-			sent = send(client_socket, sending, 2, 0);
-			pthread_exit(NULL);	
-		} */
 		free(to_send);
 		sending_size = mani_size;
 		to_send = (char *) malloc(sending_size + 1);
@@ -408,19 +401,15 @@ void *handler(void *args) {
 		free (recving);
 		recving = (char *) malloc(size + 1);
 		received = recv(client_socket, recving, size, 0);
-		printf("recving: %s\n", recving);
 		while (received < size) {
-			printf("entering while\n");
 			int bytes_recv = recv(client_socket, recving + received, size, 0);
 			received += bytes_recv;
 		}
 		recving[received] = '\0';
-//		printf("%s\n", recving);
 		/* Got the client's commit */
 		char comm_input[strlen(recving)];
 		strcpy(comm_input, recving);
 		int comm_check = push_check(project, comm_input);
-		printf("comm check: %d\n", comm_check);
 		if (comm_check == -1) {
 			free(recving);
 			snprintf(to_send, 2, "x");
@@ -446,7 +435,6 @@ void *handler(void *args) {
 			fprintf(stderr, "ERROR: Failed to open .Manifest for project \"%s\".\n", project);
 			pthread_exit(NULL);
 		}
-		printf("got here\n");
 		int mani_size = get_file_size(fd_mani);
 		if (mani_size < 0) {
 			free(recving);
@@ -501,7 +489,6 @@ void *handler(void *args) {
 		int len = strlen(comm_input);
 		int delete_check = 0, modify_check = 0;
 		char *file_path = NULL;
-		printf("about to start for loop\n");
 		for (j = 0; j < len; ++j) {
 			if (comm_input[j] != '\t' && comm_input[j] != '\n') {
 				++token_len;
@@ -516,7 +503,6 @@ void *handler(void *args) {
 				token_len = 0;
 				++count;
 			}
-			printf("%d\n", count);
 			if (count % 4 == 1) {
 				if (comm_token[0] == 'D') {
 					delete_check = 1;
