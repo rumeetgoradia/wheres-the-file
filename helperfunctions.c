@@ -390,53 +390,144 @@ int dir_copy(char *src, char *dest) {
 	return 0;
 }
 
-int generate_hashes(int fd_mani, char *path, char *mani_input) {
-	DIR *dir;
-	struct dirent *de;
-	char *input = (char *) malloc(strlen(mani_input));
-	strcpy(input, mani_input);
-	int ret = 0;
-	unsigned char hash[SHA256_DIGEST_LENGTH];
-	char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
-	if ((dir = opendir(path)) == NULL) {
-		fprintf(stderr, "ERROR: Cannot open directory \"%s\".\n", src);
-		return -1;
-	}
-	while ((de = readdir(dir)) != NULL) {
-		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) {
+int update_check(char *mani, int client_version, int server_version, char *hash, int file_version, char *file_check) {
+	int count = -1;
+	char *mani_token;
+	int j = 0, k = 0;
+	int last_sep = 0;
+	int token_len = 0;
+	int len = strlen(mani);
+	int version = 0;
+	char *file_path = NULL;
+	int check = 0;
+	for (j = 0; j < len; ++j) {
+		if (mani[j] != '\t' && mani[j] != '\n') {
+			++token_len;
+			continue;
+		} else {
+			mani_token = (char *) malloc(token_len + 1);
+			for (k = 0; k < token_len; ++k) {
+					mani_token[k] = mani[last_sep + k];
+				}
+			comm_token[token_len] = '\0';
+			last_sep += token_len + 1;
+			token_len = 0;
+			++count;
+		}
+		if (count == 0) {
+			free(mani_token);
 			continue;
 		}
-		char *new_path = (char *) malloc(strlen(path) + strlen(de->d_name) + 2);
-		snprintf(new_path, strlen(path) + strlen(de->d_name) + 2, "%s/%s", path, de->d_name);
-		if (de->d_type == DT_DIR) {
-			if (generate_hashes(fd_mani, new_path, input) != 0) {
-				ret = -1;
-			} else {
-				ret = 0;
+		if (count % 3 == 1) {
+			version = atoi(mani_token);
+			free(mani_token);
+		} else if (count % 3 == 2) {
+			if (strcmp(file_check, mani_token) == 0) {
+				check = 1;
 			}
+			free(mani_token);
+		} else if (count % 3 == 0) {
+			if (check == 1) {
+				if (strcmp(hash, token) == 0 && file_version == version && client_version == server_version) {
+					free(mani_token);
+					return 2;
+				} else if (strcmp(hash, token) != 0 && client_version == server_version) {
+					free(mani_token);
+					return 1;
+				} else if (strcmp(hash, token) != 0 && client_version != server_version && file_version != version) {
+					free(mani_token);
+					return -1;
+				}
+				free(mani_token);
+				break;
+			}
+		}
+	}
+	if (client_version == server_version) {
+		return 1;
+	} else {
+		return 4;
+	}
+}
+
+int update(int fd_upd, char *client_mani, char *server_mani, int client_version, int server_version) {
+	int count = -1;
+	char *mani_token;
+	int j = 0, k = 0;
+	int last_sep = 0;
+	int token_len = 0;
+	int len = strlen(client_mani);
+	int version = 0;
+	char *file_path = NULL;
+	int print = 1;
+	for (j = 0; j < len; ++j) {
+		if (client_mani[j] != '\t' && client_input[j] != '\n') {
+				++token_len;
+				continue;
 		} else {
-			int fd_file = open(new_path, O_RDONLY);
-			int file_size = get_file_size(fd_file);
-			if (file_size < 0 || fd_file < 0) {
+			mani_token = (char *) malloc(token_len + 1);
+			for (k = 0; k < token_len; ++k) {
+				mani_token[k] = client_mani[last_sep + k];
+			}
+			comm_token[token_len] = '\0';
+			last_sep += token_len + 1;
+			token_len = 0;
+			++count;
+		}
+		if (count == 0) {
+			free(mani_token);
+			continue;
+		}
+		if (count % 3 == 1) {
+			version = atoi(mani_token);
+		} else if (count % 3 == 2) {
+			int fd = open(token, O_RDONLY);
+			int size = get_file_size(fd);
+			if (fd < 0 || size < 0) {
+				fprintf(stderr, "Cannot read \"%s\".", token);
 				return -1;
 			}
-			char file_input[file_size + 1];
-			read(fd_file, file_input, file_size);
-			file_input[file_size] = '\0';
-			SHA256(file_input, strlen(file_input), hash);
+			file_path = (char *) malloc(strlen(token) + 1);
+			strcpy(file_path, token);
+			file_path[strlen(token) + 1];
+			char buffer[size + 1];
+			read(fd, buffer, size);
+			buffer[size] = '\0';
+			unsigned char hash[SHA256_DIGEST_LENGTH];
+			SHA256(buffer, strlen(buffer), hash);
 			int i = 0;
+			char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
 			for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
 				sprintf(hashed + (i * 2), "%02x", hash[i]);
 			}
-			add(fd_file, hashed, new_path, input, 0);
-			lseek(fd_file, 0, 0);
-			free(input);
-			int new_mani_size = get_file_size(fd_mani);
-			input = (char *) malloc(new_mani_size + 1);
-			int br = read(fd_mani, input, new_mani_size);
-			input[br] = '\0';
-			free(new_path);
+			hashed[SHA256_DIGEST_LENGTH * 2] = '\0';
+			int upd_check = update_check(server_mani, client_version, server_version, hashed, version, token);
+			if (upd_check == -1) {
+				print = 0;
+				printf("CONFLICT: %s\n", mani_token);
+			}
+			if (print) {
+				if (upd_check == 2) {
+					write(fd_upd, "M\t", 2);
+					printf("M\t");
+				} else if (upd_check == 4) {
+					write(fd_upd, "D\t", 2);
+					printf("D\t");
+				}
+				char vers[sizeof(version) + 1];
+				snprintf(vers, sizeof(version), "%d", version);
+				vers[sizeof(version)] = '\0';
+				write(fd_upd, vers, strlen(vers));
+				write(fd_upd, "\t", 1);
+				write(fd_upd, mani_token, strlen(mani_token));
+				write(fd_upd, "\t", 1);
+				write(fd_upd, hashed, strlen(hashed));
+			}
+			close(fd);
+			free(mani_token);
+		} else {
+			free(mani_token);
 		}
 	}
-	return ret;
+	
 }

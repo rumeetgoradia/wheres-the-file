@@ -734,6 +734,20 @@ int main (int argc, char **argv) {
 			char *path_upd = (char * ) malloc(strlen(argv[2]) + 9);
 			snprintf(path_upd, strlen(argv[2]) + 9, "%s/.Update", argv[2]);
 			int fd_upd = open(path_upd, O_RDWR | O_CREAT | O_TRUNC, 0744);
+			if (fd_upd < 0) {
+				printf("ERROR: Could not open or create .Commit for project \"%s\".\n", argv[2]);
+				free(to_send);
+                                to_send = (char *) malloc(2);
+                                snprintf(to_send, 2, "x");
+                                sent = send(client_socket, to_send, 2, 0);
+                                free(to_send);
+                                free(recving);
+                                free(client_mani);
+				free(path_comm);
+				close(fd_comm);
+				return EXIT_FAILURE;
+			}
+			int upd_check = update(fd_upd, client_mani_input, client_server_input, client_version, server_version);
 		}
 		close(client_socket);
 	}
