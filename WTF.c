@@ -714,12 +714,7 @@ int main (int argc, char **argv) {
 			if (fd_mani < 0 || client_mani_size < 0) {
 				fprintf(stderr, "ERROR: Unable to open local .Manifest for project \"%s\".\n", argv[2]);
 				free(to_send);
-				to_send = (char *) malloc(2);
-				snprintf(to_send, 2, "x");
-				sent = send(client_socket, to_send, 2, 0);
-				free(to_send);
 				free(recving);
-				free(client_mani);
 				return EXIT_FAILURE;
 			}
 			char client_mani_input[client_mani_size];
@@ -735,19 +730,30 @@ int main (int argc, char **argv) {
 			snprintf(path_upd, strlen(argv[2]) + 9, "%s/.Update", argv[2]);
 			int fd_upd = open(path_upd, O_RDWR | O_CREAT | O_TRUNC, 0744);
 			if (fd_upd < 0) {
-				printf("ERROR: Could not open or create .Commit for project \"%s\".\n", argv[2]);
+				fprintf(stderr, "ERROR: Could not open or create .Update for project \"%s\".\n", argv[2]);
 				free(to_send);
-                                to_send = (char *) malloc(2);
-                                snprintf(to_send, 2, "x");
-                                sent = send(client_socket, to_send, 2, 0);
-                                free(to_send);
                                 free(recving);
-                                free(client_mani);
-				free(path_comm);
-				close(fd_comm);
+				free(path_upd);
+				close(fd_upd);
 				return EXIT_FAILURE;
 			}
-			int upd_check = update(fd_upd, client_mani_input, client_server_input, client_version, server_version);
+			int upd_check = update(fd_upd, client_mani_input, server_mani_input, client_version, server_version);
+			if (upd_check == -1) {
+				free(to_send);
+				remove(path_upd);
+				close(fd_upd);
+			} else if (upd_check == 0) {
+				fprintf(stderr, "ERROR: Take care of all conflicts for project \"%s\" before attempting to update.\n", argv[2]);
+				free(to_send);
+				free(recving);
+				remove(path_upd);
+				close(fd_upd);
+			} else {
+				printf(".Update created successfully for project \"%s\"!\n", argv[2]);
+				free(recving);
+				free(to_send);
+				close(fd_upd);
+			}
 		}
 		close(client_socket);
 	}

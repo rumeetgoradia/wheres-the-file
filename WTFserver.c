@@ -607,6 +607,44 @@ void *handler(void *args) {
 		printf("Push complete!\n");
 		snprintf(to_send, 2, "g");
 		sent = send(client_socket, to_send, 2, 0);	
+	} else if (token[0] == 'u') {
+		token = strtok(NULL, ":");
+		char *proj_path = (char *) malloc(strlen(token) + 22);
+		snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
+		if (check_dir(proj_path) == -1) {
+			char sending[2] = "b";
+			sent = send(client_socket, sending, 2, 0);
+			free(proj_path);
+			fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
+			pthread_exit(NULL);
+		}
+		free(proj_path);
+		char *mani_path = (char *) malloc(strlen(token) + 31);
+		snprintf(mani_path, strlen(token) + 31, ".server_directory/%s/.Manifest", token);
+		char *to_send = (char *) malloc(2);
+		int fd_mani = open(mani_path, O_RDONLY);
+		int mani_size = get_file_size(fd_mani);
+		if (fd_mani < 0 || mani_size < 0) {
+			fprintf(stderr, "ERROR: Unable to open .Manifest for project \"%s\".\n", token);
+			free(mani_path);
+			snprintf(to_send, 2, "x");
+			sent = send(client_socket, to_send, 2, 0);
+			pthread_exit(NULL);	
+		}
+		int sending_size = sizeof(mani_size);
+		free(to_send);
+		to_send = (char *) malloc(sending_size + 1);
+		snprintf(to_send, sending_size, "%d", mani_size);
+		sent = send(client_socket, to_send, sending_size, 0);		
+		free(to_send);
+		sending_size = mani_size;
+		to_send = (char *) malloc(sending_size + 1);
+		int bytes_read = read(fd_mani, to_send, sending_size);
+		sent = send(client_socket, to_send, bytes_read, 0);
+		while (sent < bytes_read) {
+			int bytes_sent = send(client_socket, to_send + sent, bytes_read, 0);
+			sent += bytes_sent;
+		} 
 	}
 	pthread_exit(NULL);
 }
