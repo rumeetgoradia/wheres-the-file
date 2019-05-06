@@ -1,9 +1,0 @@
-A version control system can also protect a team from development mishaps. If you accidentally delete a file,
-you can just update from the repository and get it restored. If you have an odd bug and just want to start fresh,
-you can delete your whole project directory and check out a fresh copy. The version control system also saves all
-versions of a project as changes are committed to it. Every new version of a project is saved separately in the
-repository so it is possible to fetch old versions. Given the scope of this assignment, your version control system
-will have limited functionality and will only be able to roll back (most version control systems can fork a
-repository to have different development paths, and can roll forward undoing previous roll backs). This would
-allow a group to start coding, realize that the current design or direction is flawed and roll back to a previous
-n of the repository. The next check o

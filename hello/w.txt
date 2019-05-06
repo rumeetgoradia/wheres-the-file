@@ -1,4 +1,0 @@
-A version control system consists of some remote server that holds the repository and manages changes to it, and
-y number of user clients that can fetch projects from the repository and push changes to projects they have
-ked out. The clients have a local copy of the project they can make changes to, while the server holds the
-anonical or definitive version of the project.
