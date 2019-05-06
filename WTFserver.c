@@ -536,7 +536,7 @@ void *handler(void *args) {
 					remove(new_file_path);
 					remover(fd_mani, comm_token, write_to_new_mani);
 				} else {
-//					free(recving);
+					free(recving);
 					recving = (char *) malloc(sizeof(int));
 					received = recv(client_socket, recving, sizeof(int), 0);
 					if (recving[0] == 'x') {
@@ -588,9 +588,7 @@ void *handler(void *args) {
 					write_to_new_mani = (char *) malloc(new_mani_size + 1);
 					lseek(fd_mani, 0, 0);
 					int br = read(fd_mani, write_to_new_mani, new_mani_size);
-					printf("new mani size: %d, br: %d\n", new_mani_size, br);
 					write_to_new_mani[br] = '\0';
-					printf("%s\n", write_to_new_mani);
 				} else {
 					delete_check = 0;
 				}	
@@ -610,9 +608,17 @@ void *handler(void *args) {
 			free(comm_token);
 			free(file_path);
 		}
+		char new_mani_path[strlen(new_vers_path) + 11];
+		snprintf(new_mani_path, strlen(new_vers_path) + 11, "%s/.Manifest", new_vers_path);
+		int fd_new_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0744);
+		write(fd_new_mani, write_to_new_mani, strlen(write_to_new_mani));
+		close(fd_new_mani);
+		free(new_vers_path);
 		printf("Push complete!\n");
 		snprintf(to_send, 2, "g");
 		sent = send(client_socket, to_send, 2, 0);	
+		free(recving);
+		free(to_send);
 	} else if (token[0] == 'u') {
 		token = strtok(NULL, ":");
 		char *proj_path = (char *) malloc(strlen(token) + 22);
