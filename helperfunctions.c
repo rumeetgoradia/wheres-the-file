@@ -448,6 +448,7 @@ int dir_copy(char *src, char *dest) {
 			if (fd_src_file < 0) {
 				fprintf(stderr, "ERROR: Cannot open file \"%s\".\n", new_src_path);
 				close(fd_src_file);
+				closedir(dir);
 				return -1;
 			}
 			int fd_dest_file = open(new_dest_path, O_CREAT | O_WRONLY, 0744);
