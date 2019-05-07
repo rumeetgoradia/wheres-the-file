@@ -57,7 +57,7 @@ INPUT: ./client destroy compsci
 
 CLIENT OUTPUT:	Welcome! Attempting to connect to server. 
 		Connection Successful!
-		Project ironthron successfully destroyed
+		Project compsci successfully destroyed
 
 SERVER OUTPUT: 	destroying project...
 
