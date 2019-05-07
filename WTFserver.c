@@ -200,7 +200,6 @@ void *handler(void *args) {
 /*		struct stat st = {0};
 		if (stat(new_proj_path, &st) == -1) { */
 		if (check_dir(new_proj_path) == -1) {
-			pthread_mutex_lock(&cntx->lock);
 			mkdir(new_proj_path, 0744);
 			char *new_vers_path = (char *) malloc(strlen(new_proj_path) + 9);
 			snprintf(new_vers_path, strlen(new_proj_path) + 9, "%sversion0", new_proj_path);
@@ -226,7 +225,6 @@ void *handler(void *args) {
 			sending[0] = 'c';
 			sent = send(client_socket, sending, 2, 0);
 			printf("Creation of project \"%s\" successful.\n", token);
-			pthread_mutex_unlock(&cntx->lock);
 		} else {
 			sending[0] = 'x';
 			sent = send(client_socket, sending, 2, 0);
@@ -246,9 +244,7 @@ void *handler(void *args) {
 			free(proj_path);
 			pthread_exit(NULL);	
 		} else {
-			pthread_mutex_lock(cntx->lock);
 			int check = remove_dir(proj_path);
-			pthread_mutex_lock(cntx->lock);
 			if (check == 0) {
 				sending[0] = 'g';
 				sent = send(client_socket, sending, 2, 0);
@@ -534,7 +530,6 @@ void *handler(void *args) {
 			pthread_exit(NULL);
 		}	
 		/* Tokenizing comm_input */
-		pthread_mutex_lock(cntx->lock);
 		int count = 0;
 		char *comm_token;
 		int j = 0, k = 0;
@@ -663,7 +658,6 @@ void *handler(void *args) {
 			free(comm_token);
 			free(file_path);
 		}
-		pthread_mutex_unlock(cntx->lock);
 		char new_mani_path[strlen(new_vers_path) + 11];
 		snprintf(new_mani_path, strlen(new_vers_path) + 11, "%s/.Manifest", new_vers_path);
 		int fd_new_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0744);
@@ -796,7 +790,6 @@ void *handler(void *args) {
 		int version = atoi(vers_token);
 		char vers_path[sizeof(version) + strlen(token) + 28];
 		snprintf(vers_path, sizeof(version) + strlen(token) + 28, ".server_directory/%s/version%d/", token, version);
-		pthread_mutex_lock(cntx->lock);
 		int count = 0;
 		char *upd_token;
 		int j = 0, k = 0;
@@ -880,7 +873,6 @@ void *handler(void *args) {
 			}
 		}
 		free(to_send);
-		pthread_mutex_unlock(&cntx->lock);
 		to_send = (char *) malloc(sizeof(int));
 		snprintf(to_send, sizeof(int), "%d", mani_size);
 		free(to_send);
@@ -940,7 +932,6 @@ void *handler(void *args) {
 			close(fd_mani);
 			pthread_exit(NULL);
 		}
-		pthread_mutex_lock(&cntx->lock);
 		int rb_check = rollback(proj_path, req_vers);
 		if (rb_check == -1) {
 			snprintf(to_send, 2, "x");
@@ -969,7 +960,6 @@ void *handler(void *args) {
 		write(fd_mani, new_mani_input, new_size);
 		close(fd_new_mani);
 		close(fd_mani);
-		pthread_mutex_unlock(&cntx->lock);
 		snprintf(to_send, 2, "g");
 		sent = send(client_socket, to_send, 2, 0);
 		free(to_send);
