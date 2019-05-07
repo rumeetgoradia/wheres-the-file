@@ -5,14 +5,15 @@ Test Cases:
 
 __________________________________________________
 
+Server Input for all: ./WTFserver 763
 
-INPUT: ./client configure kill.cs.rutgers.edu 9876
+INPUT: ./WTF configure cpp.cs.rutgers.edu 763
 
 CLIENT OUPUT: Successful configuration.
 
 __________________________________________________
 
-INPUT: ./client create compsci
+INPUT: ./WTf create compsci
 
 CLIENT OUTPUT: 	Welcome! Attempting to connect to server. 
 		Connection Successful!
@@ -23,53 +24,51 @@ SERVER OUTPUT: Project: compsci, successfully created.
 ________________________________________________________
 
 
-INPUT: ./client add compsci ./rutgers.txt
+INPUT: ./WTF add compsci ./rutgers.txt
 
-CLIENT OUTPUT: File successfully added to Local Repository
+CLIENT OUTPUT: Project compsci added successfully!
 
 ________________________________________________________
 
 
-INPUT: ./client add compsci ./cs.txt
+INPUT: ./WTF add compsci ./cs.txt
 
-CLIENT OUTPUT: File successfully added to Local Repository
+CLIENT OUTPUT: Project compsci added successfully!
 
 ___________________________________________________________
 
 
-INPUT: ./client remove compsci ./cs.txt
+INPUT: ./WTF remove compsci ./cs.txt
 
-CLIENT OUTPUT: File successfully removed from Local Repository
+CLIENT OUTPUT: Project compsci removed on server successfully!
 ______________________________________________________________
 
-INPUT: ./client checkout compsci 
+INPUT: ./WTF checkout compsci 
 
 CLIENT OUTPUT:	Welcome! Attempting to connect to server. 
 		Connection Successful!
 		Project already exists
 
-SERVER OUTPUT: 	sending project...
+SERVER OUTPUT: 	Checkout successful!
 
 ________________________________________________________________
 
 
-INPUT: ./client destroy compsci
+INPUT: ./WTF destroy compsci
 
-CLIENT OUTPUT:	Welcome! Attempting to connect to server. 
+CLIENT OUTPUT:	 
 		Connection Successful!
 		Project compsci successfully destroyed
 
-SERVER OUTPUT: 	destroying project...
+SERVER OUTPUT: 	Destroyed successfully!
 
 _________________________________________________________________
 INPUT: ./client currentversion compsci 
 
-CLIENT OUTPUT:	Welcome! Attempting to connect to server. 
+CLIENT OUTPUT:	 
 		Connection Successful!
 		Version #4
 		Version #2	compsci/cs.txt
 		Version #1	compsci/rutgers.txt
 
-SERVER OUTPUT: 	sending current version of compsci
-
-
+SERVER OUTPUT: 	Successfully sent!
