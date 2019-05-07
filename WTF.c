@@ -49,6 +49,7 @@ int main (int argc, char **argv) {
 		close(conf_file);
 		printf("Configuration successful.\n");
 	} else if (strcmp("add", argv[1]) == 0 || strcmp("remove", argv[1]) == 0) {
+		/* Command-specific argument check at the beginning of every command */
 		if (argc < 4) {
 			fprintf(stderr, "ERROR: Need project name and file name.\n");
 			return EXIT_FAILURE;
@@ -69,10 +70,17 @@ int main (int argc, char **argv) {
 		}
 		/* Ensure file exists in project */
 		char *path = (char *) malloc(strlen(argv[2]) + strlen(argv[3]) + 2);
-		if (argv[2][strlen(argv[2]) - 1] != '/') {
-			snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s/%s", argv[2], argv[3]);
+		if (strstr(argv[3], argv[2]) == NULL || strstr(argv[3], argv[2]) != argv[3]) {
+			if (argv[2][strlen(argv[2]) - 1] != '/') {
+				snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s/%s", argv[2], argv[3]);
+			} else {
+				snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s%s", argv[2], argv[3]);
+			}	
 		} else {
-			snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s%s", argv[2], argv[3]);
+			free(path);
+			path = (char *) malloc(strlen(argv[3]) + 1);
+			strcpy(path, argv[3]);
+			path[strlen(argv[3])] = '\0';
 		}
 		int fd_file = open(path, O_RDONLY);
 		if (fd_file < 0 && strcmp("add", argv[1]) == 0) {
@@ -125,6 +133,7 @@ int main (int argc, char **argv) {
 				close(fd_manifest);
 				return EXIT_FAILURE;
 			}
+			printf("Addition of \"%s\" successful.\n", path);
 			free(path);
 			free(path_mani);
 			close(fd_manifest);
@@ -136,6 +145,7 @@ int main (int argc, char **argv) {
 				close(fd_manifest);
 				return EXIT_FAILURE;
 			}
+			printf("Removal of \"%s\" successful.\n", path);
 			free(path);
 			free(path_mani);	
 			close(fd_manifest);

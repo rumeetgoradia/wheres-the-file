@@ -279,7 +279,6 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 			path[strlen(token)] = '\0';
 			if (fd < 0 || size < 0) {
 				delete_check = 1;	
-				bytes += strlen(token) + 1;
 				close(fd);
 				continue;	
 			}
@@ -725,7 +724,7 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 			path[strlen(mani_token)] = '\0';
 			free(mani_token);
 			} else {
-				int upd_check = update_check(client_mani, client_version, server_version, token, version, path);
+				int upd_check = update_check(client_mani, client_version, server_version, mani_token, version, path);
 				/* Only need to check for code 4: path not found in other mani and versions different */
 				if (strcmp(mani_token, dashes) != 0 && upd_check == 4) {
 					write(fd_upd, "A\t", 2);
@@ -737,9 +736,9 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 					write(fd_upd, "\t", 1);
 					write(fd_upd, path, strlen(path));
 					write(fd_upd, "\t", 1);
-					write(fd_upd, hashed, strlen(token));
+					write(fd_upd, hashed, strlen(mani_token));
 					write(fd_upd, "\n", 1);
-					printf("%d\t%s\t%s\n", version, path, token);	
+					printf("%d\t%s\t%s\n", version, path, mani_token);	
 				}
 			}
 			free(path);
