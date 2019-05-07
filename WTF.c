@@ -47,6 +47,7 @@ int main (int argc, char **argv) {
 		write(conf_file, argv[3], strlen(argv[3]));
 		write(conf_file, "\n", 1);
 		close(conf_file);
+		printf("Configuration successful.\n");
 	} else if (strcmp("add", argv[1]) == 0 || strcmp("remove", argv[1]) == 0) {
 		if (argc < 4) {
 			fprintf(stderr, "ERROR: Need project name and file name.\n");
