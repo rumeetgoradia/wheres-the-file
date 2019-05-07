@@ -23,6 +23,7 @@
 #include "helperfunctions.h"
 
 int main (int argc, char **argv) {
+	/* Base argument check */
 	if (argc < 2) {
 		fprintf(stderr, "ERROR: Not enough arguments.\n");
 		return EXIT_FAILURE;
@@ -35,6 +36,7 @@ int main (int argc, char **argv) {
 			fprintf(stderr, "ERROR: Too many arguments.\n");
 			return EXIT_FAILURE;
 		}
+		/* Store IP address and port number in a file */
 		int conf_file = open("./.configure", O_WRONLY | O_CREAT | O_TRUNC, 0644);
 		if (conf_file < 0) {
 			fprintf(stderr, "ERROR: Could not open or create .configure file.\n");
@@ -92,6 +94,7 @@ int main (int argc, char **argv) {
 		char *temp2 = (char *) malloc(sizeof(char) * INT_MAX);
 		int total_length = read(fd_manifest, temp2, INT_MAX);
 		char *mani_input = NULL;
+		/* If local project existed before "create" was called, chances are it doesn't have initialized .Manifest yet */
 		if (total_length != 0) {
 			mani_input = (char *) malloc(sizeof(char) * (total_length + 1));
 			strcpy(mani_input, temp2);
@@ -102,12 +105,11 @@ int main (int argc, char **argv) {
 		}
 		free(temp2);
 		if (strcmp(argv[1], "add") == 0) {
+			/* Get input of file and hash it */
 			int size = get_file_size(fd_file);
 			char input[size + 1];
 			read(fd_file, input, size);
 			input[size] = '\0';
-/*			int fd = open("test.txt", O_CREAT | O_WRONLY, 0744);
-			write(fd, input, size); */
 			unsigned char hash[SHA256_DIGEST_LENGTH];
 			SHA256(input, strlen(input), hash);
 			char hashed[SHA256_DIGEST_LENGTH * 2 + 1];
@@ -115,6 +117,7 @@ int main (int argc, char **argv) {
 			for (i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
 				sprintf(hashed + (i * 2), "%02x", hash[i]);
 			}	
+			/* Add to .Manifest */
 			if (add(fd_manifest, hashed, path, mani_input, 0) == -1) {
 				free(path);
 				free(path_mani);
@@ -124,7 +127,8 @@ int main (int argc, char **argv) {
 			free(path);
 			free(path_mani);
 			close(fd_manifest);
-		} else {	
+		} else {
+			/* No need for hash or to check if file exists, just get rid of it from .Manifest */
 			if (remover(fd_manifest, path, mani_input) == -1) {
 				free(path);
 				free(path_mani);
@@ -136,10 +140,12 @@ int main (int argc, char **argv) {
 			close(fd_manifest);
 		}
 	} else {
+		/* Set up socket */
 		int client_socket;
 		struct addrinfo hints, *res, *ptr;
 		char *token;
 		int fd_conf = open("./.configure", O_RDONLY);
+		/* Get info from .Configure, if it exists */
 		if (fd_conf < 0) {
 			fprintf(stderr, "ERROR: Could not open \".configure\" file.\n");
 			return EXIT_FAILURE;
@@ -182,6 +188,7 @@ int main (int argc, char **argv) {
 		}
 		freeaddrinfo(res);
 		if (strcmp(argv[1], "create") == 0) {
+			/* CREATE */
 			if (argc < 3) {
 				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
 				return EXIT_FAILURE;
@@ -192,16 +199,18 @@ int main (int argc, char **argv) {
 			}
 			char sending[strlen(argv[2]) + 3];
 			char recv_buff[15];
+			/* For each different command, send server single char (representing command) with project name */
 			snprintf(sending, strlen(argv[2]) + 3, "c:%s", argv[2]);	
 			sent = send(client_socket, sending, strlen(sending), 0);
 			received = recv(client_socket, recv_buff, sizeof(recv_buff) - 1, 0);
 			recv_buff[received] = '\0';
+			/* Check for specific "error codes" sent from server */
 			if (recv_buff[0] == 'x') {
 				fprintf(stderr, "ERROR: Project \"%s\" already exists on server.\n", argv[2]);
 				return EXIT_FAILURE;
 			} else {
+				/* If directory exists, initialize, else issue error */
 				struct stat st = {0};
-				
 				if (stat(argv[2], &st) == -1) {
 					mkdir(argv[2], 0744);
 					char *new_mani_path = (char *) malloc(strlen(argv[2]) + 13);
@@ -217,6 +226,7 @@ int main (int argc, char **argv) {
 				}
 			}
 		} else if (strcmp(argv[1], "destroy") == 0) {
+			/* DESTROY */
 			if (argc < 3) {
 				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
 				return EXIT_FAILURE;
@@ -241,6 +251,7 @@ int main (int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 		} else if (strcmp(argv[1], "currentversion") == 0) {
+			/* CURRENTVERSION */
 			if (argc < 3) {
 				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
 				return EXIT_FAILURE;
@@ -259,6 +270,8 @@ int main (int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 			recv_buff[received] = '\0';
+			/* For all files sent from server, get file size first, then get actual file contents */
+			/* Getting .Manifest from server */
 			int file_size = atoi(recv_buff);
 			char *version = (char *) malloc(file_size + 2);
 			received = recv(client_socket, version, file_size, 0);
@@ -269,6 +282,7 @@ int main (int argc, char **argv) {
 				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
 				return EXIT_FAILURE;
 			}
+			/* Fix to random error that kept popping up */
 			if (iscntrl(version[0])) {
 				++version;
 			}
@@ -286,6 +300,7 @@ int main (int argc, char **argv) {
 			printf("PROJECT: %s (Version %s)\n", argv[2], token);
 			printf("----------------------------\n");
 			int count = 1;
+			/* Print file number and file path, but skip hash */
 			while (token != NULL) {
 				token = strtok(NULL, "\n\t");
 				if (token == NULL && count == 1) {
@@ -306,6 +321,7 @@ int main (int argc, char **argv) {
 				++count;
 			}
 		} else if (strcmp(argv[1], "commit") == 0) {
+			/* COMMIT */
 			if (argc < 3) {
 				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
 				return EXIT_FAILURE;
@@ -316,6 +332,7 @@ int main (int argc, char **argv) {
 			}
 			int sending_size = strlen(argv[2]) + 3;
 			char *to_send = (char *) malloc(sending_size);
+			/* Check if .Update exists; if yes, check if it's empty */
 			char upd_path[strlen(argv[2]) + 9];
 			snprintf(upd_path, strlen(argv[2]) + 9, "%s/.Update", argv[2]);
 			int fd_upd = open(upd_path, O_RDONLY);
@@ -335,6 +352,7 @@ int main (int argc, char **argv) {
 			snprintf(to_send, sending_size, "o:%s", argv[2]);
 			sent = send(client_socket, to_send, sending_size, 0);
 			
+			/* Get server's .Manifest */
 			char *recving = (char *) malloc(sizeof(int));
 			received = recv(client_socket, recving, sizeof(int), 0);	
 
@@ -362,10 +380,7 @@ int main (int argc, char **argv) {
 			char server_mani_input[received + 1];
 			strcpy(server_mani_input, recving);
 			server_mani_input[received] = '\0';
-
-/*			if (iscntrl(server_mani_input[0])) {
-				server_mani_input = &(server_mani_input[1]);
-			} */
+			/* Get client's .Manifest */
 			char *client_mani = (char *) malloc(strlen(argv[2]) + 11);
 			snprintf(client_mani, strlen(argv[2]) + 11, "%s/.Manifest", argv[2]);
 			int fd_mani = open(client_mani, O_RDWR);
@@ -384,6 +399,7 @@ int main (int argc, char **argv) {
 			}
 			char client_mani_input[client_mani_size];
 			read(fd_mani, client_mani_input, client_mani_size); 
+			/* Check versions; if they don't match, cease operation */
 			char get_version[256];
 			strcpy(get_version, client_mani_input);
 			char *vers_token = strtok(get_version, "\n");
@@ -391,7 +407,6 @@ int main (int argc, char **argv) {
 			char serv_temp[strlen(server_mani_input)];
 			strcpy(serv_temp, server_mani_input);			
 			vers_token = strtok(serv_temp, "\n");
-
 			if (client_mani_vers != atoi(vers_token)) {
 				fprintf(stderr, "ERROR: Local \"%s\" project has not been updated.\n", argv[2]);
 				free(to_send);
@@ -404,7 +419,7 @@ int main (int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 
-			/* Setup .Commit file path */
+			/* Setup .Commit */
 			char *path_comm = (char *) malloc(strlen(argv[2]) + 10);
 			snprintf(path_comm, strlen(argv[2]) + 10, "%s/.Commit", argv[2]);	
 			int fd_comm = open(path_comm, O_RDWR | O_CREAT | O_TRUNC, 0744);	
@@ -421,7 +436,8 @@ int main (int argc, char **argv) {
 				close(fd_comm);
 				return EXIT_FAILURE;
 			}
-
+			
+			/* Run helper function to fill .Commit */
 			if (commit(fd_comm, client_mani_input, server_mani_input, fd_mani) == -1) {
 				fprintf(stderr, "ERROR: Local \"%s\" project is not up-to-date with server.\n", argv[2]);
 				free(to_send);
@@ -453,6 +469,7 @@ int main (int argc, char **argv) {
 			to_send = (char *) malloc(sending_size + 1);
 			snprintf(to_send, sending_size, "%d", comm_size);
 			sent = send(client_socket, to_send, sending_size, 0);
+			/* If .Commit is empty, don't bother doing anything else */
 			if (comm_size == 0) {
 				fprintf(stderr, "ERROR: .Commit for project \"%s\" is empty.\n", argv[2]);
 				free(to_send);
@@ -468,6 +485,7 @@ int main (int argc, char **argv) {
 			int bytes_read = read(fd_comm, to_send, comm_size); 
 			sent = send(client_socket, to_send, comm_size, 0);
 			received = recv(client_socket, recving, 2, 0);
+			/* Ensure server was able to create its own .Commit */
 			if (recving[0] == 'b') {
 				fprintf(stderr, "ERROR: Server failed to create its own .Commit for project \"%s\".\n", argv[2]);
 				free(recving);
@@ -480,6 +498,7 @@ int main (int argc, char **argv) {
 			}
 			close(fd_comm);	
 		} else if (strcmp(argv[1], "push") == 0) {
+			/* PUSH */
 			if (argc < 3) {
 				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
 				return EXIT_FAILURE;
@@ -490,6 +509,7 @@ int main (int argc, char **argv) {
 			}
 			int sending_size = 3 + strlen(argv[2]);
 			char *to_send = (char *) malloc(sending_size);
+			/* Check if .Update exists, is not empty, and contains an M code; if yes, fail*/
 			char upd_path[strlen(argv[2]) + 9];
                         snprintf(upd_path, strlen(argv[2]) + 9, "%s/.Update", argv[2]);
                         int fd_upd = open(upd_path, O_RDONLY);
@@ -529,6 +549,7 @@ int main (int argc, char **argv) {
 				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
 				return EXIT_FAILURE;
 			}
+			/* Send .Commit to server */
 			char comm_path[strlen(argv[2]) + 9];
 			snprintf(comm_path, strlen(argv[2]) + 9, "%s/.Commit", argv[2]);
 			int fd_comm = open(comm_path, O_RDONLY);
@@ -562,6 +583,7 @@ int main (int argc, char **argv) {
 			snprintf(to_send, sending_size, "%s", comm_input);
 			sent = send(client_socket, to_send, sending_size, 0);
 			received = recv(client_socket, recving, 1, 0);
+			/* Check whether server could find matching .Commit */
 			if (recving[0] == 'x') {
 				fprintf(stderr, "ERROR: Server failed during .Commit lookup for project \"%s\".\n", argv[2]);
 				remove(comm_path);
@@ -595,6 +617,8 @@ int main (int argc, char **argv) {
 			}
 			char mani_buff[mani_size + 1];
 			bytes_read = read(fd_mani, mani_buff, mani_size);
+			/* Same process as server: create copy of current .Manifest and version with updated version number
+			* Implement new .Manifest immediately, but if failure, return old .Manifest */
 			char mani_jic[mani_size + 1];
 			char *new_mani_buff = (char *) malloc(mani_size + 1);
 			strncpy(mani_jic, mani_buff, bytes_read);
@@ -606,6 +630,7 @@ int main (int argc, char **argv) {
 			snprintf(write_to_new_mani, strlen(new_mani_buff) + 2 + sizeof(mani_vers + 1), "%d\n%s", mani_vers + 1, new_mani_buff);
 			fd_mani = open(mani_path, O_RDWR | O_TRUNC);
 			write(fd_mani, write_to_new_mani, strlen(write_to_new_mani));
+			/* Tokenize .Commit and make changes to local .Manifest */
 			int count = 0;
 			char *comm_token;
 			int j = 0, k = 0;
@@ -647,6 +672,7 @@ int main (int argc, char **argv) {
 							snprintf(to_send, 2, "x");
 							sent = send(client_socket, to_send, 2, 0);
 							fd_mani = open(mani_path, O_WRONLY | O_TRUNC);
+							/* Failure: Revert to old .Manifest */
 							write(fd_mani, mani_jic, mani_size);
 							close(fd_mani);
 							remove(comm_path);
@@ -684,6 +710,7 @@ int main (int argc, char **argv) {
 						free(comm_token);
 					}
 				} else if (count % 4 == 0) {	
+					/* For loop finishes before looking at last hash */
 					char hashed[strlen(comm_token) + 1];
 					strcpy(hashed, comm_token);
 					hashed[strlen(comm_token)] = '\0';
@@ -723,6 +750,7 @@ int main (int argc, char **argv) {
 				remove(comm_path);
 			}
 		} else if (strcmp(argv[1], "update") == 0) {
+			/* UPDATE */
 			if (argc < 3) {
 				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
 				return EXIT_FAILURE;
@@ -737,7 +765,7 @@ int main (int argc, char **argv) {
 			sent = send(client_socket, to_send, sending_size, 0);
 			char *recving = (char *) malloc(sizeof(int));
 			received = recv(client_socket, recving, sizeof(int), 0);	
-
+			/* Just need server's .Manifest to complete */
 			if (recving[0] == 'x') {
 				fprintf(stderr, "ERROR: Failed to get server's .Manifest for project \"%s\" from server.\n", argv[2]);
 				free(to_send);
@@ -758,15 +786,16 @@ int main (int argc, char **argv) {
 			char server_mani_input[received + 1];
 			strcpy(server_mani_input, recving);
 			server_mani_input[received] = '\0';
+			/* Get version of server's .Manifest */
 			char serv_temp[strlen(server_mani_input)];
 			strcpy(serv_temp, recving);	
 			char *vers_token = strtok(serv_temp, "\n");
 			int server_version = atoi(vers_token);
+			/* Open local .Manifest */
 			char *client_mani = (char *) malloc(strlen(argv[2]) + 11);
 			snprintf(client_mani, strlen(argv[2]) + 11, "%s/.Manifest", argv[2]);
 			int fd_mani = open(client_mani, O_RDWR);
 			int client_mani_size = get_file_size(fd_mani);
-
 			if (fd_mani < 0 || client_mani_size < 0) {
 				fprintf(stderr, "ERROR: Unable to open local .Manifest for project \"%s\".\n", argv[2]);
 				free(to_send);
@@ -776,13 +805,13 @@ int main (int argc, char **argv) {
 			char client_mani_input[client_mani_size];
 			int bytes_read = read(fd_mani, client_mani_input, client_mani_size);
 			client_mani_input[bytes_read] = '\0';
+			/* Get version of client's .Manifest */
 			char client_temp[bytes_read + 1];
 			strcpy(client_temp, client_mani_input);
 			client_temp[bytes_read] = '\0';
 			vers_token = strtok(client_temp, "\n");
 			int client_version = atoi(vers_token);
 			lseek(fd_mani, 0, 0);
-			
 			/* Set up .Update */
 			char *path_upd = (char * ) malloc(strlen(argv[2]) + 9);
 			snprintf(path_upd, strlen(argv[2]) + 9, "%s/.Update", argv[2]);
@@ -795,6 +824,7 @@ int main (int argc, char **argv) {
 				close(fd_upd);
 				return EXIT_FAILURE;
 			}
+			/* Use helper function to check if any conflicts and to put in update data */
 			int upd_check = update(fd_upd, client_mani_input, server_mani_input, client_version, server_version);
 			if (upd_check == -1) {
 				free(to_send);
@@ -817,6 +847,7 @@ int main (int argc, char **argv) {
 				close(fd_upd);
 			}
 		} else if (strcmp(argv[1], "upgrade") == 0) {
+			/* UPGRADE */
 			if (argc < 3) {
 				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
 				return EXIT_FAILURE;
@@ -835,6 +866,7 @@ int main (int argc, char **argv) {
 				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
 				return EXIT_FAILURE;
 			}
+			/* Open local .Update */
 			char *path_upd = (char * ) malloc(strlen(argv[2]) + 9);
 			snprintf(path_upd, strlen(argv[2]) + 9, "%s/.Update", argv[2]);
 			int fd_upd = open(path_upd, O_RDWR);
@@ -862,6 +894,7 @@ int main (int argc, char **argv) {
 				close(fd_upd);
 			}
 			free(to_send);
+			/* Send .Update to server */
 			sending_size = sizeof(size_upd);
 			to_send = (char *) malloc(sending_size);
 			snprintf(to_send, sending_size, "%d", size_upd);
@@ -879,6 +912,7 @@ int main (int argc, char **argv) {
 			char upd_input[br + 1];
 			strcpy(upd_input, to_send);
 			upd_input[br] = '\0';
+			/* Tokenize .Update data */
 			int count = 0;
 			char *upd_token;
 			int j = 0, k = 0;
@@ -911,20 +945,15 @@ int main (int argc, char **argv) {
 				} else if (count % 4 == 2) {
 					free(upd_token);	
 				} else if (count % 4 == 3) {
-/*				file_path = (char *) malloc(strlen(upd_token) + 1);
-				strncpy(file_path, comm_token, strlen(upd_token));
-				int path_len = strlen(new_vers_path) + 1 + strlen(file_path);
-				char new_file_path[path_len + 1];
-				snprintf(new_file_path, path_len, "%s/%s", new_vers_path, comm_token); */
 					if (delete_check == 1) {
 						remove(upd_token);
-/*						remover(fd_mani, comm_token, write_to_new_mani); */
 					} else {
 						free(recving);
 						recving = (char *) malloc(sizeof(int));
 						received = recv(client_socket, recving, sizeof(int), 0);
+						/* For anything that was M code or A code, get file content's from server */
 						if (recving[0] == 'x') {
-							fprintf(stderr, "ERROR: Server could not send coneents of \"%s\".\n", upd_token);
+							fprintf(stderr, "ERROR: Server could not send contents of \"%s\".\n", upd_token);
 							free(file_path);
 							free(upd_token);
 							close(fd_upd);
@@ -968,6 +997,7 @@ int main (int argc, char **argv) {
 			recving = (char *) malloc(sizeof(int) + 1);
 			received = recv(client_socket, recving, sizeof(int), 0);
 			recving[received] = '\0';
+			/* New .Manifest will be the same as server's, so just get server's .Manifest */
 			if (recving[0] == 'x') {
 				fprintf(stderr, "ERROR: Server unable to send .Manifest for project \"%s\".\n", argv[2]);
 				free(recving);
@@ -982,6 +1012,7 @@ int main (int argc, char **argv) {
 				int brecv = recv(client_socket, recving + received, mani_size, 0);
 				received += brecv;
 			}
+			/* Open local .Manifest */
 			char path_mani[strlen(argv[2]) + 11];
 			snprintf(path_mani, strlen(argv[2]) + 11, "%s/.Manifest", argv[2]);
 			int fd_mani = open(path_mani, O_WRONLY | O_TRUNC);
@@ -1001,6 +1032,7 @@ int main (int argc, char **argv) {
 			free(to_send);
 			printf("Upgrade successful!\n");
 		} else if (strcmp(argv[1], "rollback") == 0) {
+			/* ROLLBACK */
 			if (argc < 4) {
 				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name and desired version number.\n");
 				return EXIT_FAILURE;
@@ -1009,6 +1041,7 @@ int main (int argc, char **argv) {
 				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name and desired version number.\n");
 				return EXIT_FAILURE;
 			}
+			/* Send rollback code, project name, and version all in 1 go */
 			int sending_size = strlen(argv[2]) + strlen(argv[3]) + 4;
 			char *to_send = (char *) malloc(sending_size);
 			snprintf(to_send, sending_size, "r:%s:%s", argv[2], argv[3]);
@@ -1025,6 +1058,7 @@ int main (int argc, char **argv) {
 				printf("Rollback successful!\n");
 			}
 		} else if (strcmp(argv[1], "history") == 0) {
+			/* HISTORY */
 			if (argc < 3) {
 				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
 				return EXIT_FAILURE;
@@ -1049,6 +1083,7 @@ int main (int argc, char **argv) {
 				free(recving);
 				return EXIT_FAILURE;
 			}
+			/* Get .History file from server */
 			free(recving);
 			recving = (char *) malloc(sizeof(int) + 1);
 			received = recv(client_socket, recving, sizeof(int), 0);	
@@ -1062,9 +1097,12 @@ int main (int argc, char **argv) {
 				received += br;
 			}
 			recving[received] = '\0';
-			/* Do stuff with recving */
+			/* Print history */
 			printf("%s", recving);
+			free(recving);
+			free(to_send);
 		} else {
+			/* If argv[1] didn't match any of the commands, send error code to server */ 
 			char to_send[2] = "x";
 			sent = send(client_socket, to_send, 2, 0);
 		}
