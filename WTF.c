@@ -66,7 +66,11 @@ int main (int argc, char **argv) {
 		}
 		/* Ensure file exists in project */
 		char *path = (char *) malloc(strlen(argv[2]) + strlen(argv[3]) + 2);
-		snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s/%s", argv[2], argv[3]);
+		if (argv[2][strlen(argv[2]) - 1] != '/') {
+			snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s/%s", argv[2], argv[3]);
+		} else {
+			snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s%s", argv[2], argv[3]);
+		}
 		int fd_file = open(path, O_RDONLY);
 		if (fd_file < 0 && strcmp("add", argv[1]) == 0) {
 			fprintf(stderr, "ERROR: File \"%s\" does not exist in project \"%s\".\n", argv[3], argv[2]);
@@ -312,9 +316,25 @@ int main (int argc, char **argv) {
 			}
 			int sending_size = strlen(argv[2]) + 3;
 			char *to_send = (char *) malloc(sending_size);
+			char upd_path[strlen(argv[2]) + 9];
+			snprintf(upd_path, strlen(argv[2]) + 9, "%s/.Update", argv[2]);
+			int fd_upd = open(upd_path, O_RDONLY);
+			if (fd_upd >= 0) {
+				char temp[2];
+				int br = read(fd_upd, temp, 1);
+				if (br > 0) {
+					snprintf(to_send, sending_size, "x");
+					sent = send(client_socket, to_send, 2, 0);
+					fprintf(stderr, "ERROR: Non-empty .Update exists locally for project \"%s\".\n", argv[2]);
+					free(to_send);
+					close(fd_upd);
+					return EXIT_FAILURE;
+				}
+				close(fd_upd);
+			}
 			snprintf(to_send, sending_size, "o:%s", argv[2]);
 			sent = send(client_socket, to_send, sending_size, 0);
-
+			
 			char *recving = (char *) malloc(sizeof(int));
 			received = recv(client_socket, recving, sizeof(int), 0);	
 
@@ -335,11 +355,10 @@ int main (int argc, char **argv) {
 			recving = (char *) malloc(server_mani_size + 1);
 
 			received = recv(client_socket, recving, server_mani_size, 0);
-/*			while (received < server_mani_size) {
-				int bytes_recv = recv(client_socket, recving + bytes_recv, server_mani_size,0);
+			while (received < server_mani_size) {
+				int bytes_recv = recv(client_socket, recving + received, server_mani_size,0);
 				received += bytes_recv;
-			} */
-
+			} 
 			char server_mani_input[received + 1];
 			strcpy(server_mani_input, recving);
 			server_mani_input[received] = '\0';
@@ -471,6 +490,33 @@ int main (int argc, char **argv) {
 			}
 			int sending_size = 3 + strlen(argv[2]);
 			char *to_send = (char *) malloc(sending_size);
+			char upd_path[strlen(argv[2]) + 9];
+                        snprintf(upd_path, strlen(argv[2]) + 9, "%s/.Update", argv[2]);
+                        int fd_upd = open(upd_path, O_RDONLY);
+                        if (fd_upd >= 0) {
+				char temp[2];
+                                int br = read(fd_upd, temp, 1);
+                                if (br > 0) {
+					lseek(fd_upd, 0, 0);
+					int size = get_file_size(fd_upd);
+					char upd_input[size + 1];
+					br = read(fd_upd, upd_input, size);
+					upd_input[br] = '\0';
+					char *upd_token = strtok(upd_input, "\t\n");
+					while (upd_token != NULL) {
+						if (strcmp(upd_token, "M") == 0) {
+							snprintf(to_send, sending_size, "x");
+							sent = send(client_socket, to_send, 2, 0);
+							fprintf(stderr, "ERROR: Non-empty .Update exists locally for project \"%s\".\n", argv[2]);
+							free(to_send);
+							close(fd_upd);
+	                	                        return EXIT_FAILURE;
+						}
+						upd_token = strtok(NULL, "\t\n");
+					}
+                                }
+                                close(fd_upd);
+                        }
 			snprintf(to_send, sending_size, "p:%s", argv[2]);
 			sent = send(client_socket, to_send, sending_size, 0);
 			while (sent < sending_size) {
@@ -1020,6 +1066,9 @@ int main (int argc, char **argv) {
 			recving[received] = '\0';
 			/* Do stuff with recving */
 			printf("%s", recving);
+		} else {
+			char to_send[2] = "x";
+			sent = send(client_socket, to_send, 2, 0);
 		}
 		close(client_socket);
 	}

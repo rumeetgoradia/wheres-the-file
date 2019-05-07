@@ -16,9 +16,10 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include "helperfunctions.h"
-/* lol */
+
+static int keep_running = 1;
+
 struct server_context {
-	unsigned int num_connections;
 	pthread_mutex_t lock;
 };
 
@@ -27,7 +28,11 @@ struct work_args {
 	struct server_context *cntx;
 };
 
-void *handler (void *args);
+void *thread_handler (void *args);
+
+void int_handler(int) {
+	keep_running = 0;
+}
 
 int main (int argc, char **argv) {
 	/* Check for correct number of arguments */
@@ -38,11 +43,14 @@ int main (int argc, char **argv) {
 		fprintf(stderr, "ERROR: Too many arguments.\n");
 		return(EXIT_FAILURE);
 	}
-
+	struct sigaction act;
+	act.sa_handler = int_handler;
+	sigaction(SIGINT, &act, NULL);
+	while (keep_running) {
 	struct server_context *cntx = (struct server_context *) malloc(sizeof(struct server_context));
-	cntx->num_connections = 0;
+	
 	pthread_mutex_init(&cntx->lock, NULL);
-
+	
 	sigset_t sig;
 	sigemptyset(&sig);
 	sigaddset(&sig, SIGPIPE);
@@ -134,7 +142,7 @@ int main (int argc, char **argv) {
 		wa->socket = client_socket;
 		wa->cntx = cntx;
 
-		if(pthread_create(&thread, NULL, handler, wa) != 0) {
+		if(pthread_create(&thread, NULL, thread_handler, wa) != 0) {
 			fprintf(stderr, "ERROR: Could not create thread.\n");
 			free(client_add);
 			free(wa);
@@ -143,6 +151,7 @@ int main (int argc, char **argv) {
 			return EXIT_FAILURE;
 		}
 	}
+	}
 	
 	pthread_mutex_destroy(&cntx->lock);
 	free(cntx);
@@ -150,6 +159,11 @@ int main (int argc, char **argv) {
 }
 
 void *handler(void *args) {
+	struct sigaction act;
+	act.sa_handler = int_handler;
+	sigaction(SIGINT, &act, NULL);
+	
+	while (keep_running) {
 	struct work_args *wa;
 	struct server_context *cntx;
 	int client_socket, sent, received, i;	
@@ -171,7 +185,7 @@ void *handler(void *args) {
 	}
 	char *token;
 	token = strtok(recv_buffer, ":");
-
+	pthread_mutex_lock(&cntx->lock);
 	if (token[0] == 'c') {
 
 		token = strtok(NULL, ":");
@@ -211,7 +225,6 @@ void *handler(void *args) {
 			sending[0] = 'c';
 			sent = send(client_socket, sending, 2, 0);
 			printf("Creation of project \"%s\" successful.\n", token);
-			pthread_exit(NULL);
 		} else {
 			sending[0] = 'x';
 			sent = send(client_socket, sending, 2, 0);
@@ -231,7 +244,7 @@ void *handler(void *args) {
 			free(proj_path);
 			pthread_exit(NULL);	
 		} else {
-			int check = remove_dir(proj_path);	
+			int check = remove_dir(proj_path);
 			if (check == 0) {
 				sending[0] = 'g';
 				sent = send(client_socket, sending, 2, 0);
@@ -374,9 +387,7 @@ void *handler(void *args) {
 		free(recving);
 		recving = (char *) malloc(comm_size + 1);
 		received = recv(client_socket, recving, comm_size, 0);
-
-//		char temp[remaining + 1];
-//		strcpy(temp, buffer);
+		
 		srand(time(0));
 		int version = rand() % 10000;
 
@@ -483,7 +494,7 @@ void *handler(void *args) {
 		}
 		snprintf(to_send, 2, "g");
 		sent = send(client_socket, to_send, 2, 0);
-		printf("about to mani\n");
+
 		char mani_buff[mani_size + 1];
 		int bytes_read = read(fd_mani, mani_buff, mani_size);
 		char mani_jic[mani_size + 1];
@@ -503,7 +514,7 @@ void *handler(void *args) {
 		snprintf(new_vers_path, strlen(project) + 29 + sizeof(version + 1), ".server_directory/%s/version%d", project, version + 1);
 		mkdir(new_vers_path, 0744);
 		int dir_copy_check = dir_copy(vers_path, new_vers_path);
-		printf("about to dircheck\n");
+	
 		if (dir_copy_check == 0) {
 			snprintf(to_send, 2, "g");
 			sent = send(client_socket, to_send, 2, 0);
@@ -647,7 +658,6 @@ void *handler(void *args) {
 			free(comm_token);
 			free(file_path);
 		}
-
 		char new_mani_path[strlen(new_vers_path) + 11];
 		snprintf(new_mani_path, strlen(new_vers_path) + 11, "%s/.Manifest", new_vers_path);
 		int fd_new_mani = open(new_mani_path, O_CREAT | O_WRONLY, 0744);
@@ -1027,6 +1037,12 @@ void *handler(void *args) {
 
 		close(fd_hist);
 		printf("Sent history of project \"%s\" to client!\n", project);
+	} else if (token[0] == 'x') {
+		fprintf(stderr, "ERROR: Mishap on client's end.\n");
+	}
+	pthread_mutex_unlock(&cntx->lock);
+	} if (!keep_running) {
+		printf("Server closed.\n");
 	}
 	pthread_exit(NULL);
 }
