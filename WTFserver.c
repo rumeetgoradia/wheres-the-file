@@ -46,11 +46,11 @@ int main (int argc, char **argv) {
 	struct sigaction act;
 	act.sa_handler = int_handler;
 	sigaction(SIGINT, &act, NULL);
-	while (keep_running) {
+	if (keep_running) {
 		struct server_context *cntx = (struct server_context *) malloc(sizeof(struct server_context));
 
 		pthread_mutex_init(&cntx->lock, NULL);
-		/* Ignore SIGPIPE --> "  If client closes connection, SIGPIPE signal produced --> Process killed --> Ignore signal */
+		/* Ignore SIGPIPE --> If client closes connection, SIGPIPE signal produced --> Process killed --> Ignore signal */
 		sigset_t sig;
 		sigemptyset(&sig);
 		sigaddset(&sig, SIGPIPE);
@@ -129,18 +129,12 @@ int main (int argc, char **argv) {
 		}
 
 		printf("Waiting for client...\n");
-<<<<<<< HEAD
-		while(1 & keep_running) {
+
+		while(1 && keep_running) {
 			sigaction(SIGINT, &act, NULL);
 			client_add = malloc(sin_size);
 			/* Accept */
 			if ((client_socket = accept(server_socket, (struct sockaddr *) &client_add, &sin_size)) < 0 && keep_running) {
-=======
-		while(1) {
-			client_add = malloc(sin_size);
-			/* Accept */
-			if ((client_socket = accept(server_socket, (struct sockaddr *) &client_add, &sin_size)) < 0) {
->>>>>>> 88a1a96c1637ca28b8164f04e1efd39647b3943c
 				fprintf(stderr, "ERROR: Could not accept connection.\n");
 				free(client_add);
 				continue;
@@ -149,8 +143,7 @@ int main (int argc, char **argv) {
 			wa = malloc(sizeof(struct work_args));
 			wa->socket = client_socket;
 			wa->cntx = cntx;
-<<<<<<< HEAD
-			while (keep_running) {
+			if (keep_running) {
 				if(pthread_create(&thread, NULL, thread_handler, wa) != 0) {
 					fprintf(stderr, "ERROR: Could not create thread.\n");
 					free(client_add);
@@ -169,32 +162,11 @@ int main (int argc, char **argv) {
 }
 
 void *thread_handler(void *args) {
-=======
-
-			if(pthread_create(&thread, NULL, thread_handler, wa) != 0) {
-				fprintf(stderr, "ERROR: Could not create thread.\n");
-				free(client_add);
-				free(wa);
-				close(client_socket);
-				close(server_socket);
-				return EXIT_FAILURE;
-			}
-		}
-
-
-		pthread_mutex_destroy(&cntx->lock);
-	}
-	free(cntx);
-	return EXIT_SUCCESS;
-}
-
-void *handler(void *args) {
->>>>>>> 88a1a96c1637ca28b8164f04e1efd39647b3943c
 	struct sigaction act;
 	act.sa_handler = int_handler;
 	sigaction(SIGINT, &act, NULL);
 	
-	while (keep_running) {
+	if (keep_running) {
 		struct work_args *wa;
 		struct server_context *cntx;
 		int client_socket, sent, received, i;	
@@ -205,7 +177,11 @@ void *handler(void *args) {
 		cntx = wa->cntx;
 
 		pthread_detach(pthread_self());
-
+		sigaction(SIGINT, &act, NULL);
+		if (!keep_running) {
+			printf("Server shutting down.\n");
+			pthread_exit(NULL);
+		}
 		printf("Socket %d connected.\n", client_socket);
 
 		received = recv(client_socket, recv_buffer, BUFSIZ - 1, 0);
@@ -494,7 +470,7 @@ void *handler(void *args) {
 				received += bytes_recv;
 			}
 			recving[received] = '\0';
-			printf("got comm input\n");
+
 			/* Get the client's commit */
 			char comm_input[strlen(recving) + 1];
 			strcpy(comm_input, recving);

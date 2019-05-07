@@ -236,12 +236,7 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 			version = atoi(token);
 			++version;
 			free(token);
-<<<<<<< HEAD
 		} else if (count % 3 == 2) {	
-=======
-		} else if (count % 3 == 2) {
-			printf("token: %s\n", token);
->>>>>>> 88a1a96c1637ca28b8164f04e1efd39647b3943c
 			int fd = open(token, O_RDONLY);
 			int size = get_file_size(fd);
 			path = (char *)malloc(strlen(token) + 1);
