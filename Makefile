@@ -6,7 +6,7 @@ helperfunctions.o: helperfunctions.c
 	gcc -c helperfunctions.c -lm -lssl -lcrypto
 
 
-test: WTFtest.c
+foo:
 	gcc WTFtest.c -o WTFtest
 
 clean:
