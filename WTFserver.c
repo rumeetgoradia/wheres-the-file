@@ -1,3 +1,10 @@
+/**********************************
+ * Aditi Singh and Rumeet Goradia
+ * as2811, rug5
+ * Section 04
+ * CS214
+ **********************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -30,6 +37,7 @@ struct work_args {
 
 void *thread_handler (void *args);
 
+/* SIGINT handler: Switches global variable to stop operation */
 void int_handler() {
 	keep_running = 0;
 }
@@ -266,8 +274,6 @@ void *thread_handler(void *args) {
 					sending[0] = 'g';
 					sent = send(client_socket, sending, 2, 0);
 					free(proj_path);
-					pthread_mutex_unlock(&cntx->lock);
-					pthread_exit(NULL);
 				} else {
 					sending[0] = 'b';
 					sent = send(client_socket, sending, 2, 0);
@@ -312,6 +318,7 @@ void *thread_handler(void *args) {
 				char sending[2] = "x";
 				sent = send(client_socket, sending, 2, 0);
 				free(mani_path);
+				close(fd_mani);
 				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 
@@ -324,6 +331,7 @@ void *thread_handler(void *args) {
 				free(mani_path);
 				char sending[2] = "x";
 				sent = send(client_socket, sending, 2, 0);
+				close(fd_mani);
 				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);	
 			}
