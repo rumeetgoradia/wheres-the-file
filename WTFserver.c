@@ -129,11 +129,18 @@ int main (int argc, char **argv) {
 		}
 
 		printf("Waiting for client...\n");
+<<<<<<< HEAD
 		while(1 & keep_running) {
 			sigaction(SIGINT, &act, NULL);
 			client_add = malloc(sin_size);
 			/* Accept */
 			if ((client_socket = accept(server_socket, (struct sockaddr *) &client_add, &sin_size)) < 0 && keep_running) {
+=======
+		while(1) {
+			client_add = malloc(sin_size);
+			/* Accept */
+			if ((client_socket = accept(server_socket, (struct sockaddr *) &client_add, &sin_size)) < 0) {
+>>>>>>> 88a1a96c1637ca28b8164f04e1efd39647b3943c
 				fprintf(stderr, "ERROR: Could not accept connection.\n");
 				free(client_add);
 				continue;
@@ -142,6 +149,7 @@ int main (int argc, char **argv) {
 			wa = malloc(sizeof(struct work_args));
 			wa->socket = client_socket;
 			wa->cntx = cntx;
+<<<<<<< HEAD
 			while (keep_running) {
 				if(pthread_create(&thread, NULL, thread_handler, wa) != 0) {
 					fprintf(stderr, "ERROR: Could not create thread.\n");
@@ -161,6 +169,27 @@ int main (int argc, char **argv) {
 }
 
 void *thread_handler(void *args) {
+=======
+
+			if(pthread_create(&thread, NULL, thread_handler, wa) != 0) {
+				fprintf(stderr, "ERROR: Could not create thread.\n");
+				free(client_add);
+				free(wa);
+				close(client_socket);
+				close(server_socket);
+				return EXIT_FAILURE;
+			}
+		}
+
+
+		pthread_mutex_destroy(&cntx->lock);
+	}
+	free(cntx);
+	return EXIT_SUCCESS;
+}
+
+void *handler(void *args) {
+>>>>>>> 88a1a96c1637ca28b8164f04e1efd39647b3943c
 	struct sigaction act;
 	act.sa_handler = int_handler;
 	sigaction(SIGINT, &act, NULL);
