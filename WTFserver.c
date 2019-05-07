@@ -243,6 +243,7 @@ void *thread_handler(void *args) {
 				sent = send(client_socket, sending, 2, 0);
 				free(new_proj_path);
 				fprintf(stderr, "ERROR: Creation of project \"%s\" failed.\n", token);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 		} else if (token[0] == 'd') {
@@ -256,6 +257,7 @@ void *thread_handler(void *args) {
 				sending[0] = 'x';
 				sent = send(client_socket, sending, 2, 0);
 				free(proj_path);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);	
 			} else {
 				/* Project exists, use helper function to get rid of it */
@@ -264,15 +266,18 @@ void *thread_handler(void *args) {
 					sending[0] = 'g';
 					sent = send(client_socket, sending, 2, 0);
 					free(proj_path);
+					pthread_mutex_unlock(&cntx->lock);
 					pthread_exit(NULL);
 				} else {
 					sending[0] = 'b';
 					sent = send(client_socket, sending, 2, 0);
 					fprintf(stderr, "ERROR: Could not remove \"%s\" project from server.\n", token);
 					free(proj_path);
+					pthread_mutex_unlock(&cntx->lock);
 					pthread_exit(NULL);
 				}
 			}
+			printf("Project \"%s\" deleted from server.\n", token);
 		} else if (token[0] == 'v') {
 			/* CURRENTVERSION */
 			token = strtok(NULL, ":");
@@ -283,6 +288,7 @@ void *thread_handler(void *args) {
 				sent = send(client_socket, sending, 2, 0);
 				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
 				free(proj_path);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			free(proj_path);
@@ -297,6 +303,7 @@ void *thread_handler(void *args) {
 				char sending[2] = "x";
 				sent = send(client_socket, sending, 2, 0);	
 				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);	
 			}
 			struct stat st = {0};
@@ -305,7 +312,7 @@ void *thread_handler(void *args) {
 				char sending[2] = "x";
 				sent = send(client_socket, sending, 2, 0);
 				free(mani_path);
-
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 
 			}
@@ -317,6 +324,7 @@ void *thread_handler(void *args) {
 				free(mani_path);
 				char sending[2] = "x";
 				sent = send(client_socket, sending, 2, 0);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);	
 			}
 			char *contents = malloc(st.st_size + 1);
@@ -337,7 +345,6 @@ void *thread_handler(void *args) {
 			printf("Sent .Manifest file for \"%s\" project to client.\n", token);
 			close(fd_mani);
 			free(mani_path);
-			pthread_exit(NULL);
 		} else if (token[0] == 'o') {
 			/* COMMIT */
 			token = strtok(NULL, ":");
@@ -348,6 +355,7 @@ void *thread_handler(void *args) {
 				sent = send(client_socket, sending, 2, 0);
 				free(proj_path);
 				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			free(proj_path);
@@ -363,6 +371,7 @@ void *thread_handler(void *args) {
 				snprintf(to_send, 2, "x");
 				sent = send(client_socket, to_send, 2, 0);
 				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);	
 			}
 			int sending_size = sizeof(mani_size);
@@ -390,6 +399,7 @@ void *thread_handler(void *args) {
 				free(mani_path);
 				free(to_send);
 				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			} else if (recving[0] == 'b') {
 				fprintf(stderr, "Client's copy of project \"%s\" is not up-to-date.\n", token);
@@ -397,6 +407,7 @@ void *thread_handler(void *args) {
 				free(mani_path);
 				free(to_send);
 				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			int comm_size = atoi(recving);
@@ -405,6 +416,7 @@ void *thread_handler(void *args) {
 				close(fd_mani);
 				free(recving);
 				free(to_send);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			free(recving);
@@ -427,6 +439,7 @@ void *thread_handler(void *args) {
 				free(to_send);
 				close(fd_mani);
 				close(fd_comm_server);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			free(comm_path);
@@ -460,6 +473,7 @@ void *thread_handler(void *args) {
 				fprintf(stderr, "ERROR: Client's .Commit is empty for project \"%s\".\n", token);
 				free(recving);
 				free(to_send);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			free(recving);
@@ -481,6 +495,7 @@ void *thread_handler(void *args) {
 				snprintf(to_send, 2, "x");
 				sent = send(client_socket, to_send, 2, 0);
 				free(to_send);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			} else if (comm_check == 1) {
 				free(recving);
@@ -488,6 +503,7 @@ void *thread_handler(void *args) {
 				snprintf(to_send, 2, "b");
 				sent = send(client_socket, to_send, 2, 0);
 				free(to_send);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			/* Open server's .Manifest */
@@ -501,6 +517,7 @@ void *thread_handler(void *args) {
 				free(to_send);
 				fprintf(stderr, "ERROR: Failed to open .Manifest for project \"%s\".\n", project);
 				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			int mani_size = get_file_size(fd_mani);
@@ -511,6 +528,7 @@ void *thread_handler(void *args) {
 				free(to_send);
 				fprintf(stderr, "ERROR: Failed to get .Manifest's size for project \"%s\".\n", project);
 				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			snprintf(to_send, 2, "g");
@@ -548,6 +566,7 @@ void *thread_handler(void *args) {
 				remove_dir(new_vers_path);
 				fprintf(stderr, "ERROR: Failed to instantiate new version of project \"%s\".\n", project);
 				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}	
 			/* Tokenizing .Commit's input */
@@ -614,6 +633,7 @@ void *thread_handler(void *args) {
 							free(file_path);
 							free(comm_token);
 							close(fd_mani);
+							pthread_mutex_unlock(&cntx->lock);
 							pthread_exit(NULL);
 						}
 						int file_size = atoi(recving);
@@ -641,6 +661,7 @@ void *thread_handler(void *args) {
 							close(fd_mani);
 							close(fd_new_file);
 							free(comm_token);
+							pthread_mutex_unlock(&cntx->lock);
 							pthread_exit(NULL);
 						}
 						write(fd_new_file, recving, file_size);
@@ -726,6 +747,7 @@ void *thread_handler(void *args) {
 				sent = send(client_socket, sending, 2, 0);
 				free(proj_path);
 				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			free(proj_path);
@@ -741,6 +763,7 @@ void *thread_handler(void *args) {
 				snprintf(to_send, 2, "x");
 				sent = send(client_socket, to_send, 2, 0);
 				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);	
 			}
 			int sending_size = sizeof(mani_size);
@@ -768,6 +791,7 @@ void *thread_handler(void *args) {
 				sent = send(client_socket, sending, 2, 0);
 				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", token);
 				free(proj_path);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			free(proj_path);
@@ -782,11 +806,13 @@ void *thread_handler(void *args) {
 				fprintf(stderr, "ERROR: Client could not open local .Update for project \"%s\".\n", token);
 				free(recving);
 				free(to_send);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			} else if (recving[0] == 'b') {
 				fprintf(stderr, "ERROR: Nothing to update for project \"%s\".\n", token);
 				free(recving);
 				free(to_send);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			int upd_size = atoi(recving);
@@ -813,6 +839,7 @@ void *thread_handler(void *args) {
 				sent = send(client_socket, to_send, 2, 0);
 				free(to_send);
 				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			char mani_input[mani_size + 1];
@@ -876,6 +903,7 @@ void *thread_handler(void *args) {
 							free(upd_token);
 							close(fd);
 							close(fd_mani);
+							pthread_mutex_unlock(&cntx->lock);
 							pthread_exit(NULL);
 						}
 						free(to_send);
@@ -901,6 +929,7 @@ void *thread_handler(void *args) {
 							free(to_send);
 							free(recving);
 							free(upd_token);
+							pthread_mutex_unlock(&cntx->lock);
 							pthread_exit(NULL);
 						}
 					}
@@ -942,6 +971,7 @@ void *thread_handler(void *args) {
 				snprintf(to_send, 2, "b");
 				sent = send(client_socket, to_send, 2, 0);
 				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", project);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			char mani_path[strlen(proj_path) + 11];
@@ -953,6 +983,7 @@ void *thread_handler(void *args) {
 				fprintf(stderr, "ERROR: Cannot open .Manifest for project \"%s\".\n", project);
 				free(to_send);
 				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			/* Get version of client */
@@ -969,6 +1000,7 @@ void *thread_handler(void *args) {
 				sent = send(client_socket, to_send, 2, 0);
 				free(to_send);
 				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			int rb_check = rollback(proj_path, req_vers);
@@ -977,6 +1009,7 @@ void *thread_handler(void *args) {
 				sent = send(client_socket, to_send, 2, 0);
 				free(to_send);
 				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			char new_mani_path[strlen(proj_path) + 19 + sizeof(req_vers)];
@@ -990,6 +1023,7 @@ void *thread_handler(void *args) {
 				free(to_send);
 				close(fd_mani);
 				close(fd_new_mani);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			char new_mani_input[new_size + 1];
@@ -1041,6 +1075,7 @@ void *thread_handler(void *args) {
 				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", project);
 				snprintf(to_send, 2, "b");
 				sent = send(client_socket, to_send, 2, 0);
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			char hist_path[strlen(proj_path) + 10];
@@ -1050,7 +1085,8 @@ void *thread_handler(void *args) {
 			if (hist_size < 0 || fd_hist < 0)  {
 				fprintf(stderr, "ERROR: Cannot open .History for project \"%s\".\n", project);
 				snprintf(to_send, 2, "x");
-				sent = send(client_socket, to_send, 2, 0);  
+				sent = send(client_socket, to_send, 2, 0); 
+				pthread_mutex_unlock(&cntx->lock);
 				pthread_exit(NULL);
 			}
 			snprintf(to_send, 2, "g");
