@@ -1,3 +1,10 @@
+/**********************************
+ * Aditi Singh and Rumeet Goradia 
+ * as2811, rug5
+ * Section 04
+ * CS214
+ **********************************/
+
 int add(int fd_manifest, char *hashcode, char *path, char *input, int flag);
 int remover(int fd_manifest, char *path, char *input);
 int check_dir(char *path);
