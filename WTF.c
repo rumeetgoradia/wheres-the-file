@@ -1,3 +1,10 @@
+/**********************************
+ * Aditi Singh and Rumeet Goradia 
+ * as2811, rug5
+ * Section 04
+ * CS214
+ **********************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -986,8 +993,8 @@ int main (int argc, char **argv) {
 			char *to_send = (char *) malloc(sending_size);
 			snprintf(to_send, sending_size, "h:%s", argv[2]);
 			sent = send(client_socket, to_send, sending_size, 0);
-			char *recving = (char *) malloc(sizeof(int) + 1);
-			received = recv(client_socket, recving, sizeof(int), 0);
+			char *recving = (char *) malloc(2);
+			received = recv(client_socket, recving, 1, 0);
 			if (recving[0] == 'b' || recving[0] == 'x') {
 				if (recving[0] == 'b') {
 					fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
@@ -998,6 +1005,9 @@ int main (int argc, char **argv) {
 				free(recving);
 				return EXIT_FAILURE;
 			}
+			free(recving);
+			recving = (char *) malloc(sizeof(int) + 1);
+			received = recv(client_socket, recving, sizeof(int), 0);	
 			recving[received] = '\0';
 			int size = atoi(recving);
 			free(recving);

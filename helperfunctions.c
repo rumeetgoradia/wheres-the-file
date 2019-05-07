@@ -268,14 +268,13 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 				strcpy(hashed, dashes);
 				comm_check = commit_check(version - 1, path, dashes, server_mani);
 			} else {
-				comm_check = commit_check(version - 1, path, token, server_mani);
+				comm_check = commit_check(version - 1, path, hashed, server_mani);
 			}
 			int token_equals_hash = strcmp(token, hashed);
 			if (comm_check == -1) {
 				return -1;
 			}
-			printf("token: %s : comm: %d\n", token, comm_check);	
-			if (token_equals_dashes == 0 && comm_check != 2) {
+			if (token_equals_dashes == 0 && comm_check == 1) {
 				write(fd_comm, "D\t", 2);
 			} else if (token_equals_dashes != 0 && comm_check == 2) {
 				write(fd_comm, "A\t", 2);
@@ -308,9 +307,12 @@ int delete_commits(char *proj_path, char *name) {
 		return -1;
 	}
 	struct dirent *de;
+
 	while ((de = readdir(dir)) != NULL) {
 		if (strstr(de->d_name, ".Commit") != NULL && strcmp(de->d_name, name) != 0) {
+
 			char *comm_path = (char *) malloc(strlen(proj_path) + strlen(de->d_name) + 1);
+
 			snprintf(comm_path, strlen(proj_path) + strlen(de->d_name) + 1, "%s%s", proj_path, de->d_name);
 			if (de->d_type != DT_DIR) {
 				remove(comm_path);
@@ -351,10 +353,12 @@ int push_check(char *project, char *comm_input) {
 			input[size] = '\0';
 			input[size - 1] = '\0';
 			if (strcmp(input, comm_input) == 0) {
+				printf("in here\n");
 				free(comm_path);
-				closedir(dir);
 				close(fd_comm);
-				return delete_commits(path, de->d_name);
+				int ret = delete_commits(path, de->d_name);
+				closedir(dir);
+				return ret;
 			}
 			close(fd_comm);
 			free(comm_path);
@@ -586,8 +590,7 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 				upd_check = update_check(server_mani, client_version, server_version, dashes, version, path);
 			} else {
 				upd_check = update_check(server_mani, client_version, server_version, hashed, version, path);
-			}
-			printf("upd: %d\n", upd_check);
+			}	
 			if (upd_check == -1) {
 				print = 0;
 				printf("CONFLICT: %s\n", path);
