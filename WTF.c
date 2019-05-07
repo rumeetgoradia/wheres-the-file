@@ -70,7 +70,7 @@ int main (int argc, char **argv) {
 		}
 		/* Ensure file exists in project */
 		char *path = (char *) malloc(strlen(argv[2]) + strlen(argv[3]) + 2);
-		if (strstr(argv[3], argv[2]) == NULL || strstr(argv[3], argv[2]) != argv[3]) {
+		if (strstr(argv[3], argv[2]) == NULL || (strstr(argv[3], argv[2]) != argv[3] && argv[3][0] != '.' && argv[3][1] != '/')) {
 			if (argv[2][strlen(argv[2]) - 1] != '/') {
 				snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s/%s", argv[2], argv[3]);
 			} else {
