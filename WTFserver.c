@@ -572,7 +572,7 @@ void *thread_handler(void *args) {
 				free(to_send);
 				free(recving);
 				close(fd_mani);
-				open(fd_mani, O_WRONLY | O_TRUNC);
+				open(mani_path, O_WRONLY | O_TRUNC);
 				write(fd_mani, mani_jic, mani_size);
 				remove_dir(new_vers_path);
 				fprintf(stderr, "ERROR: Failed to instantiate new version of project \"%s\".\n", project);
@@ -615,7 +615,7 @@ void *thread_handler(void *args) {
 				} else if (count % 4 == 3) {
 					file_path = (char *) malloc(strlen(comm_token) + 1);
 					strncpy(file_path, comm_token, strlen(comm_token));
-					comm_token += strlen(project) + 1;
+					comm_token += strlen(project);
 					int path_len = strlen(new_vers_path) + 1 + strlen(file_path);
 					char new_file_path[path_len + 1];
 					snprintf(new_file_path, path_len, "%s/%s", new_vers_path, comm_token);
@@ -643,7 +643,7 @@ void *thread_handler(void *args) {
 							write(fd_mani, mani_jic, mani_size);
 							remove_dir(new_vers_path);
 							free(file_path);
-							free(comm_token);
+			
 							close(fd_mani);
 							pthread_mutex_unlock(&cntx->lock);
 							pthread_exit(NULL);
@@ -667,13 +667,13 @@ void *thread_handler(void *args) {
 							snprintf(to_send, 2, "x");
 							sent = send(client_socket, to_send, 2, 0);
 							free(to_send);
-							fprintf(stderr, "ERROR: Failed to open \"%s\" filein project.\n", new_file_path);
+							fprintf(stderr, "ERROR: Failed to open \"%s\" file in project.\n", new_file_path);
 							close(fd_mani);
 							fd_mani = open(mani_path, O_RDWR | O_TRUNC);
 							write(fd_mani, mani_jic, mani_size);
 							close(fd_mani);
 							close(fd_new_file);
-							free(comm_token);
+
 							pthread_mutex_unlock(&cntx->lock);
 							pthread_exit(NULL);
 						}
@@ -792,7 +792,8 @@ void *thread_handler(void *args) {
 			while (sent < bytes_read) {
 				int bytes_sent = send(client_socket, to_send + sent, bytes_read, 0);
 				sent += bytes_sent;
-			} 
+			}
+			printf("Sent .Manifest for project \"%s\" to client.\n", token); 
 			close(fd_mani);
 		} else if (token[0] == 'g') {
 			/* UPGRADE */
@@ -841,8 +842,8 @@ void *thread_handler(void *args) {
 			strcpy(upd_input, recving);
 			upd_input[received] = '\0';
 			/* Open .Manifest */
-			char mani_path[strlen(token) + 11];
-			snprintf(mani_path, strlen(token) + 11, "%s/.Manifest", token);
+			char mani_path[strlen(token) + 30];
+			snprintf(mani_path, strlen(token) + 30, ".server_directory/%s/.Manifest", token);
 			int fd_mani = open(mani_path, O_RDONLY);
 			int mani_size = get_file_size(fd_mani);
 			if (fd_mani < 0 || mani_size < 0) {
@@ -899,7 +900,10 @@ void *thread_handler(void *args) {
 					path = (char *) malloc(strlen(upd_token) + 1);
 					strcpy(path, upd_token);
 					path[strlen(upd_token)] = '\0';
-					upd_token += strlen(token) + 1;
+					upd_token += strlen(token);
+					if (token[strlen(token) + 1] == '/') {
+						++upd_token;
+					}
 					char new_file_path[strlen(upd_token) + strlen(vers_path) + 1];
 					snprintf(new_file_path, strlen(upd_token) + strlen(vers_path) + 1, "%s%s", vers_path, upd_token);
 					if (delete_check) {
@@ -912,8 +916,7 @@ void *thread_handler(void *args) {
 							snprintf(to_send, 2, "x");
 							sent = send(client_socket, to_send, 2, 0);
 							free(to_send);
-							free(recving);
-							free(upd_token);
+							free(recving);	
 							close(fd);
 							close(fd_mani);
 							pthread_mutex_unlock(&cntx->lock);

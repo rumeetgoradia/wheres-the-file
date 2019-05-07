@@ -234,8 +234,10 @@ int commit_check(int version, char *path, char *hash, char *other_mani) {
 
 /* Parse throough client's .Manifest and use commit_check() to determine if there are any differences
  * between client's .Manifest and server's */
-int commit(int fd_comm, char *client_mani, char *server_mani) {	
+int commit(int fd_comm, char *client_mani, char *server_mani) {
+	
 	int len = strlen(client_mani);
+
 	int j = 0, k = 0;
 	char *token;
 	int token_len = 0;
@@ -312,6 +314,7 @@ int commit(int fd_comm, char *client_mani, char *server_mani) {
 			if (comm_check == -1) {
 				return -1;
 			}
+
 			if (token_equals_dashes == 0 && comm_check == 1) {
 				/* If file is present and its hash isn't dashes, and it was removed from local .Manifest, D*/
 				write(fd_comm, "D\t", 2);
@@ -590,9 +593,9 @@ int update_check(char *mani, int client_version, int server_version, char *hash,
 
 /* Fill .Update with the help of update_check() */
 int update(int fd_upd, char *client_mani, char *server_mani, int client_version, int server_version) {
-	/* Tokenize client's .Manifest */
+	/* Tokenize client's .Manifest */	
 	int count = -1;
-	char *mani_token;
+	char *mani_token = NULL;
 	int j = 0, k = 0;
 	int last_sep = 0;
 	int token_len = 0;
@@ -606,6 +609,9 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 				++token_len;
 				continue;
 		} else {
+			if (mani_token != NULL) {
+				free(mani_token);
+			}
 			mani_token = (char *) malloc(token_len + 1);
 			for (k = 0; k < token_len; ++k) {
 				mani_token[k] = client_mani[last_sep + k];
@@ -615,9 +621,10 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 			token_len = 0;
 			++count;
 		}
+
 		/* First token will always be the .Manifest version number, which is already given in args */
 		if (count == 0) {
-			free(mani_token);
+			free(mani_token);	
 			continue;
 		}
 		if (count % 3 == 1) {
@@ -646,16 +653,17 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 			strcpy(path, mani_token);
 			path[strlen(mani_token)] = '\0';
 			close(fd);
-			free(mani_token);
-		} else {
+		} else if (count != 0) {
 			int upd_check = 0;
 			/* Check if file was already deleted in server */
+			printf("got before update check\n");
 			if (strcmp(mani_token, dashes) == 0) {
 				upd_check = update_check(server_mani, client_version, server_version, dashes, version, path);
 			} else {
 				/* Or just do a regular check */
 				upd_check = update_check(server_mani, client_version, server_version, hashed, version, path);
-			}	
+			}
+			printf("got after it\n");
 			/* If conflict, stop printing anything else and report conflict */
 			if (upd_check == -1) {
 				print = 0;
@@ -687,7 +695,6 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 				}
 			}
 			free(path);
-			free(mani_token);
 		}
 	}
 	/* Also need to check for files that are on server that just aren't on client's .Manifest at all, even as removed */
@@ -723,10 +730,10 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 				version = atoi(mani_token);
 			} else if (count % 3 == 2) {
 			/* Path */
-			path = (char *) malloc(strlen(mani_token) + 1);
-			strcpy(path, mani_token);
-			path[strlen(mani_token)] = '\0';
-			free(mani_token);
+				path = (char *) malloc(strlen(mani_token) + 1);
+				strcpy(path, mani_token);
+				path[strlen(mani_token)] = '\0';
+				free(mani_token);
 			} else {
 				int upd_check = update_check(client_mani, client_version, server_version, mani_token, version, path);
 				/* Only need to check for code 4: path not found in other mani and versions different */
@@ -744,9 +751,9 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 					write(fd_upd, "\n", 1);
 					printf("%d\t%s\t%s\n", version, path, mani_token);	
 				}
+				free(mani_token);
+				free(path);
 			}
-			free(path);
-			free(mani_token);
 		}
 	}	
 	return print;
@@ -771,7 +778,11 @@ int rollback(char *path, int version) {
 				continue;
 			}
 			char vers_path[strlen(path) + strlen(de->d_name) + 2];
-			snprintf(vers_path, strlen(path) + strlen(de->d_name) + 2, "%s/%s", path, de->d_name);
+			if (path[strlen(path) - 1] != '/') {
+				snprintf(vers_path, strlen(path) + strlen(de->d_name) + 2, "%s/%s", path, de->d_name);
+			} else {
+				snprintf(vers_path, strlen(path) + strlen(de->d_name) + 2, "%s%s", path, de->d_name);
+			}
 			char mani_path[strlen(vers_path) + 12];
 			snprintf(mani_path, strlen(vers_path) + 12, "%s/.Manifest", vers_path);
 			int fd_mani = open(mani_path, O_RDONLY);

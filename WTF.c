@@ -408,17 +408,25 @@ int main (int argc, char **argv) {
 				free(client_mani);
 				return EXIT_FAILURE;
 			}
-			char client_mani_input[client_mani_size];
-			read(fd_mani, client_mani_input, client_mani_size); 
+			char client_mani_input[client_mani_size + 1];
+			int bread = read(fd_mani, client_mani_input, client_mani_size); 
+			client_mani_input[bread] = '\0';
+
 			/* Check versions; if they don't match, cease operation */
 			char get_version[256];
 			strcpy(get_version, client_mani_input);
+
 			char *vers_token = strtok(get_version, "\n");
+
 			int client_mani_vers = atoi(vers_token);
 			char serv_temp[strlen(server_mani_input)];
-			strcpy(serv_temp, server_mani_input);			
-			vers_token = strtok(serv_temp, "\n");
-			if (client_mani_vers != atoi(vers_token)) {
+
+			snprintf(serv_temp, strlen(server_mani_input), "%s", server_mani_input);
+//			strcpy(serv_temp, server_mani_input);
+
+			char *server_vers_token = strtok(serv_temp, "\n");
+
+			if (client_mani_vers != atoi(server_vers_token)) {
 				fprintf(stderr, "ERROR: Local \"%s\" project has not been updated.\n", argv[2]);
 				free(to_send);
 				to_send = (char *) malloc(2);
@@ -449,6 +457,7 @@ int main (int argc, char **argv) {
 			}
 			
 			/* Run helper function to fill .Commit */
+
 			if (commit(fd_comm, client_mani_input, server_mani_input, fd_mani) == -1) {
 				fprintf(stderr, "ERROR: Local \"%s\" project is not up-to-date with server.\n", argv[2]);
 				free(to_send);
@@ -639,6 +648,7 @@ int main (int argc, char **argv) {
 			new_mani_buff += strlen(mani_token) + 1;
 			char *write_to_new_mani = malloc(strlen(new_mani_buff) + 2 + sizeof(mani_vers + 1));
 			snprintf(write_to_new_mani, strlen(new_mani_buff) + 2 + sizeof(mani_vers + 1), "%d\n%s", mani_vers + 1, new_mani_buff);
+			close(fd_mani);
 			fd_mani = open(mani_path, O_RDWR | O_TRUNC);
 			write(fd_mani, write_to_new_mani, strlen(write_to_new_mani));
 			/* Tokenize .Commit and make changes to local .Manifest */
@@ -682,6 +692,7 @@ int main (int argc, char **argv) {
 							to_send = (char *) malloc(2);
 							snprintf(to_send, 2, "x");
 							sent = send(client_socket, to_send, 2, 0);
+							close(fd_mani);
 							fd_mani = open(mani_path, O_WRONLY | O_TRUNC);
 							/* Failure: Revert to old .Manifest */
 							write(fd_mani, mani_jic, mani_size);
@@ -708,6 +719,7 @@ int main (int argc, char **argv) {
 						received = recv(client_socket, recving, 2, 0);
 						if (recving[0] == 'x') {
 							fprintf(stderr, "ERROR: Server could not open new copy of \"%s\" in project \"%s\".\n", comm_token, argv[2]);
+							close(fd_mani);
 							fd_mani = open(mani_path, O_WRONLY | O_TRUNC);
 							write(fd_mani, mani_jic, mani_size);
 							close(fd_mani);
@@ -750,7 +762,7 @@ int main (int argc, char **argv) {
 					add(fd_mani, comm_token, path, write_to_new_mani, 1);
         	                }
                         	free(comm_token);
-	                        free(path);
+//	                        free(path);
                 	}
 			received = recv(client_socket, recving, 2, 0);
 			if (recving[0] == 'g') {
@@ -794,14 +806,17 @@ int main (int argc, char **argv) {
 			recving = (char *) malloc(server_mani_size + 1);
 
 			received = recv(client_socket, recving, server_mani_size, 0);
+			
 			char server_mani_input[received + 1];
 			strcpy(server_mani_input, recving);
 			server_mani_input[received] = '\0';
+		
 			/* Get version of server's .Manifest */
 			char serv_temp[strlen(server_mani_input)];
-			strcpy(serv_temp, recving);	
+			snprintf(serv_temp, strlen(server_mani_input), "%s", server_mani_input);
 			char *vers_token = strtok(serv_temp, "\n");
 			int server_version = atoi(vers_token);
+		
 			/* Open local .Manifest */
 			char *client_mani = (char *) malloc(strlen(argv[2]) + 11);
 			snprintf(client_mani, strlen(argv[2]) + 11, "%s/.Manifest", argv[2]);
@@ -816,6 +831,7 @@ int main (int argc, char **argv) {
 			char client_mani_input[client_mani_size];
 			int bytes_read = read(fd_mani, client_mani_input, client_mani_size);
 			client_mani_input[bytes_read] = '\0';
+
 			/* Get version of client's .Manifest */
 			char client_temp[bytes_read + 1];
 			strcpy(client_temp, client_mani_input);
@@ -823,6 +839,7 @@ int main (int argc, char **argv) {
 			vers_token = strtok(client_temp, "\n");
 			int client_version = atoi(vers_token);
 			lseek(fd_mani, 0, 0);
+		
 			/* Set up .Update */
 			char *path_upd = (char * ) malloc(strlen(argv[2]) + 9);
 			snprintf(path_upd, strlen(argv[2]) + 9, "%s/.Update", argv[2]);
@@ -836,7 +853,9 @@ int main (int argc, char **argv) {
 				return EXIT_FAILURE;
 			}
 			/* Use helper function to check if any conflicts and to put in update data */
+		
 			int upd_check = update(fd_upd, client_mani_input, server_mani_input, client_version, server_version);
+			
 			if (upd_check == -1) {
 				free(to_send);
 				remove(path_upd);
@@ -932,7 +951,8 @@ int main (int argc, char **argv) {
 			int len = strlen(upd_input);
 			int delete_check = 0, modify_check = 0;
 			char *file_path = NULL;
-			for (j = 0; j < len; ++j) {
+			printf("about to enter for loop\n");
+			for (j = 0; j < len; ++j) {	
 				if (upd_input[j] != '\t' && upd_input[j] != '\n') {
 					++token_len;
 					continue;
@@ -946,6 +966,7 @@ int main (int argc, char **argv) {
 					token_len = 0;
 					++count;
 				}
+				printf("%d\n", count);
 				if (count % 4 == 1) {
 					if (upd_token[0] == 'D') {
 						delete_check = 1;
@@ -960,8 +981,10 @@ int main (int argc, char **argv) {
 						remove(upd_token);
 					} else {
 						free(recving);
-						recving = (char *) malloc(sizeof(int));
+						recving = (char *) malloc(sizeof(int) + 1);
 						received = recv(client_socket, recving, sizeof(int), 0);
+						recving[received] = '\0';
+						printf("recved %d bytes: %s\n", received, recving);
 						/* For anything that was M code or A code, get file content's from server */
 						if (recving[0] == 'x') {
 							fprintf(stderr, "ERROR: Server could not send contents of \"%s\".\n", upd_token);
@@ -970,17 +993,21 @@ int main (int argc, char **argv) {
 							close(fd_upd);
 							return EXIT_FAILURE;
 						}
+						printf("got past check\n");
 						int file_size = atoi(recving);
+						printf("size: %d\n", file_size);
 						free(recving);
 						recving = (char *) malloc(file_size + 1);
 						received = recv(client_socket, recving, file_size, 0);
-						while (received < file_size) {
+						/* while (received < file_size) {
 							int brecv = recv(client_socket, recving + received, file_size, 0);
 							received += brecv;
-						}
+						} */
 						recving[received] = '\0';
+						printf("recved %d bytes: %s\n", received, recving);
 						int fd_file = open(upd_token, O_WRONLY | O_TRUNC);
 						if (!modify_check) {
+							close(fd_file);
 							fd_file = open(upd_token, O_WRONLY | O_CREAT, 0744);
 						}
 						if (fd_file < 0) {
@@ -1002,6 +1029,7 @@ int main (int argc, char **argv) {
 					free(upd_token);
 				}
 			}
+			printf("Got this done\n");
 			close(fd_upd);
 			remove(path_upd);
 			free(recving);
