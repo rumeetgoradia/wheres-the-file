@@ -694,9 +694,7 @@ int main (int argc, char **argv) {
 						write_to_new_mani = (char *) malloc(new_mani_size + 1);
 						lseek(fd_mani, 0, 0);
 						int br = read(fd_mani, write_to_new_mani, new_mani_size);
-						printf("new mani size: %d, br: %d\n", new_mani_size, br);
-						write_to_new_mani[br] = '\0';
-						printf("%s\n", write_to_new_mani);
+						write_to_new_mani[br] = '\0';	
 					} else {
 						delete_check = 0;
 					}

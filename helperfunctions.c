@@ -637,7 +637,6 @@ int rollback(char *path, int version) {
 		char temp[strlen(de->d_name) + 1];
 		strcpy(temp, de->d_name);
 		temp[strlen(de->d_name)] = '\0';
-		printf("d_name: %s\n", de->d_name);
 		if (strstr(temp, "version") != NULL) {
 			if (de->d_type != DT_DIR) {
 				continue;
@@ -646,7 +645,6 @@ int rollback(char *path, int version) {
 			snprintf(vers_path, strlen(path) + strlen(de->d_name) + 2, "%s/%s", path, de->d_name);
 			char mani_path[strlen(vers_path) + 12];
 			snprintf(mani_path, strlen(vers_path) + 12, "%s/.Manifest", vers_path);
-			printf("mani: %s\n", mani_path);
 			int fd_mani = open(mani_path, O_RDONLY);
 			if (fd_mani < 0) {
 				fprintf(stderr, "ERROR: Not able to parse through versions.\n");
