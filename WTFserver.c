@@ -553,6 +553,7 @@ void *thread_handler(void *args) {
 			new_mani_buff += strlen(mani_token) + 1;
 			char *write_to_new_mani = malloc(strlen(new_mani_buff) + 2 + sizeof(version + 1));
 			snprintf(write_to_new_mani, strlen(new_mani_buff) + 2 + sizeof(version + 1), "%d\n%s", version + 1, new_mani_buff);
+			close(fd_mani);
 			fd_mani = open(mani_path, O_RDWR | O_TRUNC);
 			write(fd_mani, write_to_new_mani, strlen(write_to_new_mani));
 			char vers_path[strlen(project) + 29 + sizeof(version)];
@@ -570,6 +571,8 @@ void *thread_handler(void *args) {
 				sent = send(client_socket, to_send, 2, 0);
 				free(to_send);
 				free(recving);
+				close(fd_mani);
+				open(fd_mani, O_WRONLY | O_TRUNC);
 				write(fd_mani, mani_jic, mani_size);
 				remove_dir(new_vers_path);
 				fprintf(stderr, "ERROR: Failed to instantiate new version of project \"%s\".\n", project);
@@ -635,6 +638,7 @@ void *thread_handler(void *args) {
 						if (recving[0] == 'x') {
 							fprintf(stderr, "ERROR: Client could not send coneents of file.\n");
 							/* On failure, revert .Manifest to old version */
+							close(fd_mani);
 							fd_mani = open(mani_path, O_WRONLY | O_TRUNC);
 							write(fd_mani, mani_jic, mani_size);
 							remove_dir(new_vers_path);
@@ -664,6 +668,7 @@ void *thread_handler(void *args) {
 							sent = send(client_socket, to_send, 2, 0);
 							free(to_send);
 							fprintf(stderr, "ERROR: Failed to open \"%s\" filein project.\n", new_file_path);
+							close(fd_mani);
 							fd_mani = open(mani_path, O_RDWR | O_TRUNC);
 							write(fd_mani, mani_jic, mani_size);
 							close(fd_mani);
