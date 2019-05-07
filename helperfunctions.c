@@ -403,9 +403,12 @@ int push_check(char *project, char *comm_input) {
 			if (strcmp(input, comm_input) == 0) {
 				free(comm_path);
 				close(fd_comm);
-				/* Delete all other .Commits */
-				int ret = delete_commits(path, de->d_name);
+				char name[strlen(de->d_name) + 1];
+				strcpy(name, de->d_name);
+				name[strlen(de->d_name)] = '\0';
 				closedir(dir);
+				/* Delete all other .Commits */
+				int ret = delete_commits(path, name);
 				return ret;
 			}
 			close(fd_comm);
