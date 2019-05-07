@@ -5,8 +5,14 @@ all: WTF.c helperfunctions.o WTFserver.c
 helperfunctions.o: helperfunctions.c
 	gcc -c helperfunctions.c -lm -lssl -lcrypto
 
+
+test: WTFtest.c
+	gcc WTFtest.c -o WTFtest
+
 clean:
 	rm -f WTF
 	rm -f WTFserver
-	rm -f helperfunctions.o	
+	rm -f helperfunctiions.o	
+	
+
 

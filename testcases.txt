@@ -1,0 +1,75 @@
+Aditi Singh and Rumeet Goradia
+
+
+Test Cases:
+
+__________________________________________________
+
+
+INPUT: ./client configure kill.cs.rutgers.edu 9876
+
+CLIENT OUPUT: Successful configuration.
+
+__________________________________________________
+
+INPUT: ./client create compsci
+
+CLIENT OUTPUT: 	Welcome! Attempting to connect to server. 
+		Connection Successful!
+		Local Repository successfully created. 
+
+SERVER OUTPUT: Project: compsci, successfully created.
+
+________________________________________________________
+
+
+INPUT: ./client add compsci ./rutgers.txt
+
+CLIENT OUTPUT: File successfully added to Local Repository
+
+________________________________________________________
+
+
+INPUT: ./client add compsci ./cs.txt
+
+CLIENT OUTPUT: File successfully added to Local Repository
+
+___________________________________________________________
+
+
+INPUT: ./client remove compsci ./cs.txt
+
+CLIENT OUTPUT: File successfully removed from Local Repository
+______________________________________________________________
+
+INPUT: ./client checkout compsci 
+
+CLIENT OUTPUT:	Welcome! Attempting to connect to server. 
+		Connection Successful!
+		Project already exists
+
+SERVER OUTPUT: 	sending project...
+
+________________________________________________________________
+
+
+INPUT: ./client destroy compsci
+
+CLIENT OUTPUT:	Welcome! Attempting to connect to server. 
+		Connection Successful!
+		Project compsci successfully destroyed
+
+SERVER OUTPUT: 	destroying project...
+
+_________________________________________________________________
+INPUT: ./client currentversion compsci 
+
+CLIENT OUTPUT:	Welcome! Attempting to connect to server. 
+		Connection Successful!
+		Version #4
+		Version #2	compsci/cs.txt
+		Version #1	compsci/rutgers.txt
+
+SERVER OUTPUT: 	sending current version of compsci
+
+
