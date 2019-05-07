@@ -176,7 +176,7 @@ int remove_dir(char *path) {
 	/* Finally, remove the directory itself */
 	ret = rmdir(path);
 	if (ret < 0) {
-		fprintf(stderr, "ERROR: Failed to delete \"%s\" from server.", path);
+		fprintf(stderr, "ERROR: Failed to delete \"%s\" from server. It is probably currently in use.\n", path);
 	}
 	closedir(dr);
 	return ret;
