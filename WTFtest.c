@@ -12,33 +12,31 @@ int main(int argc, char**argv){
     } else {
       execlp("./WTFserver", "7000");
       sleep(5);
-        execlp("./WTF", "configure", "lisp.cs.rutgers.edu", "7000");
+      execlp("./WTF", "configure", "lisp.cs.rutgers.edu", "7000");
       sleep(5);
       execlp("./WTF", "create", "File1");
       sleep(5);
       execlp("./WTF", "add", "File1","cs.txt");
       sleep(5);
-      execlp("./WTF", "add", "File2","adru.txt");
+      execlp("./WTF", "add", "File1","adru.txt");
       sleep(5);
-      execlp("./WTF", "add", "File2", "File2/adru.txt");
+      execlp("./WTF", "add", "File1", "File1/adru.txt");
       sleep(5);
       execlp("./WTF", "commit", "File1");
       sleep(5);
-      execlp("./WTF", "push", "File2");
+      execlp("./WTF", "push", "File1");
       sleep(5);
-      execlp("./WTF", "remove", "File2", "adru.txt");
+      execlp("./WTF", "remove", "File1", "adru.txt");
       sleep(5);
       execlp("./WTF", "update", "File1");
       sleep(5);
       execlp("./WTF", "upgrade", "File1");
       sleep(5);
-      execlp("./WTF", "history", "File1");
-      sleep(5);
       execlp("./WTF", "currentversion", "File1");
       sleep(5);
-      execlp("./WTF", "commit", "File1", "1");
+      execlp("./WTF", "rollback", "File1", "1");
       sleep(5);
-      execlp("./WTF", "push", "File1");
+      execlp("./WTF", "history", "File1");
       sleep(5);
     }
 
