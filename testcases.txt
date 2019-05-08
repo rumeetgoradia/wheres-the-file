@@ -17,7 +17,7 @@ INPUT: ./WTf create compsci
 
 CLIENT OUTPUT: 	Project "compsci" initialized successfully! 
 
-SERVER OUTPUT: Creation of project "args" successful. 
+SERVER OUTPUT: Creation of project "compsci" successful. 
 
 ________________________________________________________
 
@@ -42,18 +42,9 @@ ______________________________________________________________
 
 Input: ./WTF remove args 
 
-Client OUTPUT: Project "arg" does not exist.
+Client OUTPUT: Project "args" does not exist.
 
-SERVER OUTPUT: Project "arg" does not exist on server. 
-_______________________________________________________________
-
-INPUT: ./WTF checkout compsci 
-
-CLIENT OUTPUT:	Welcome! Attempting to connect to server. 
-		Connection Successful!
-		Project already exists
-
-SERVER OUTPUT: 	Checkout successful!
+SERVER OUTPUT: Project "args" does not exist on server. 
 _______________________________________________________________
 
 INPUT: ./WTF commit compsci
