@@ -70,7 +70,7 @@ int main (int argc, char **argv) {
 		}
 		/* Ensure file exists in project */
 		char *path = (char *) malloc(strlen(argv[2]) + strlen(argv[3]) + 2);
-		if (strstr(argv[3], argv[2]) == NULL || (strstr(argv[3], argv[2]) != argv[3] && argv[3][0] != '.' && argv[3][1] != '/')) {
+		if (strstr(argv[3], argv[2]) == NULL || (strstr(argv[3], argv[2]) != argv[3])) {
 			if (argv[2][strlen(argv[2]) - 1] != '/') {
 				snprintf(path, strlen(argv[2]) + strlen(argv[3]) + 2, "%s/%s", argv[2], argv[3]);
 			} else {
@@ -1140,6 +1140,100 @@ int main (int argc, char **argv) {
 			printf("%s", recving);
 			free(recving);
 			free(to_send);
+		} else if (strcmp(argv[1], "checkout") == 0) {
+			if (argc < 3) {
+				fprintf(stderr, "ERROR: Not enough arguments. Please input the project name.\n");
+				return EXIT_FAILURE;
+			}
+			if (argc > 3) {
+				fprintf(stderr, "ERROR: Too many arguments. Please input only the project name.\n");
+				return EXIT_FAILURE;
+			}
+			int sending_size = 3 + strlen(argv[2]);
+			char *to_send = (char *) malloc(sending_size);
+			if (check_dir(argv[2]) != -1) {
+				fprintf(stderr, "ERROR: Project \"%s\" already exists on client side.\n", argv[2]);
+				snprintf(to_send, 2, "x");
+				sent = send(client_socket, to_send, 2, 0);
+				free(to_send);
+				return EXIT_FAILURE;
+			}
+			snprintf(to_send, sending_size, "k:%s", argv[2]);
+			sent = send(client_socket, to_send, sending_size, 0);
+			char *recving = (char *) malloc(2);
+			received = recv(client_socket, recving, 2, 0);
+			if (recving[0] == 'b' || recving[0] == 'x') {
+				if (recving[0] == 'b') {
+					fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", argv[2]);
+				} else {
+					fprintf(stderr, "ERROR: Server could not send history of project \"%s\".\n", argv[2]);
+				}
+				free(to_send);
+				free(recving);
+				return EXIT_FAILURE;
+			}
+			mkdir(argv[2], 0744);
+			char absolute_path[PATH_MAX + 1];
+			char *ptr = realpath(argv[2], absolute_path);	
+			int len = strlen(absolute_path);
+			free(to_send);
+			to_send = (char *) malloc(sizeof(int));
+			snprintf(to_send, sizeof(int), "%d", len);
+			sent = send(client_socket, to_send, sizeof(int), 0);
+			free(to_send);
+			to_send = (char *) malloc(len + 1);
+			strcpy(to_send, absolute_path);
+			to_send[len] = '\0';
+			sent = send(client_socket, to_send, len, 0);
+			while (sent < len) {
+				int bs = send(client_socket, to_send + sent, len, 0);
+				sent += bs;
+			}
+			/* Getting server's .Manifest */
+			free(recving);
+			recving = (char *) malloc(sizeof(int));
+			received = recv(client_socket, recving, sizeof(int), 0);
+			printf("recved %d: %s\n", received, recving);
+			if (recving[0] == 'x') {
+				remove_dir(absolute_path);
+				free(to_send);
+				free(recving);
+				fprintf(stderr, "ERROR: Could not receive server's copy of project \"%s\".\n", argv[2]);
+				return EXIT_FAILURE;
+			}
+			/* Retrieving .Manifest */
+			int mani_size = atoi(recving);
+			printf("mani_size: %d\n", mani_size);
+			free(recving);
+			recving = (char *) malloc(mani_size + 1);
+			received = recv(client_socket, recving, mani_size, 0);
+			while (received < mani_size) {
+				int br = recv(client_socket, recving + received, mani_size, 0);
+				received += br;
+			}
+			recving[received] = '\0';
+			printf("yo: %s\n", recving);
+			char mani_path[strlen(argv[2])+ 11];
+			snprintf(mani_path, strlen(argv[2]) + 11, "%s/.Manifest", argv[2]);
+			free(to_send);
+			to_send = (char *) malloc(2);
+			int fd_mani = open(mani_path, O_CREAT | O_WRONLY, 0744);
+			if (fd_mani < 0) {
+				snprintf(to_send, 2, "x");
+				sent = send(client_socket, to_send, 2, 0);
+				free(to_send);
+				free(recving);
+				close(fd_mani);
+				fprintf(stderr, "ERROR: Could not create local .Manifest for project \"%s\".\n", argv[2]);
+				return EXIT_FAILURE;
+			}
+			write(fd_mani, recving, mani_size);
+			close(fd_mani);
+			snprintf(to_send, 2, "g");
+			sent = send(client_socket, to_send, 2, 0);
+			free(to_send);
+			free(recving);
+			printf("Got project \"%s\" from server!\n", argv[2]);
 		} else {
 			/* If argv[1] didn't match any of the commands, send error code to server */ 
 			char to_send[2] = "x";

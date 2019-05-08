@@ -423,7 +423,7 @@ int push_check(char *project, char *comm_input) {
 }
 
 /* Copy src directory into dest directory recursively */
-int dir_copy(char *src, char *dest) {
+int dir_copy(char *src, char *dest, int flag) {
 	DIR *dir;
 	struct dirent *de;
 	if ((dir = opendir(src)) == NULL) {
@@ -436,6 +436,9 @@ int dir_copy(char *src, char *dest) {
 		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) {
 			continue;
 		}
+		if (flag && (strstr(de->d_name, ".Manifest") != NULL || strstr(de->d_name, ".Commit") != NULL || strstr(de->d_name, ".History") != NULL)) {
+			continue;
+		}
 		char *new_src_path = (char *) malloc(strlen(src) + strlen(de->d_name) + 2);
 		char *new_dest_path = (char *) malloc(strlen(dest) + strlen(de->d_name) + 2);
 		snprintf(new_src_path, strlen(src) + strlen(de->d_name) + 2, "%s/%s", src, de->d_name);
@@ -443,7 +446,7 @@ int dir_copy(char *src, char *dest) {
 		/* If de is a directory, create a new matching one in dest and fill it recursively */
 		if (de->d_type == DT_DIR) {
 			mkdir(new_dest_path, 0744);
-			if (dir_copy(new_src_path, new_dest_path) != 0) {
+			if (dir_copy(new_src_path, new_dest_path, flag) != 0) {
 				return -1;
 			} else {
 				return 0;

@@ -561,7 +561,7 @@ void *thread_handler(void *args) {
 			char new_vers_path[strlen(project) + 29 + sizeof(version + 1)];
 			snprintf(new_vers_path, strlen(project) + 29 + sizeof(version + 1), ".server_directory/%s/version%d", project, version + 1);
 			mkdir(new_vers_path, 0744);
-			int dir_copy_check = dir_copy(vers_path, new_vers_path);
+			int dir_copy_check = dir_copy(vers_path, new_vers_path, 0);
 			/* Make new copy of directory */
 			if (dir_copy_check == 0) {
 				snprintf(to_send, 2, "g");
@@ -1133,6 +1133,100 @@ void *thread_handler(void *args) {
 
 			close(fd_hist);
 			printf("Sent history of project \"%s\" to client!\n", project);
+		} else if (token[0] == 'k') {
+			token = strtok(NULL, ":");
+			char project[strlen(token) + 1];
+			strcpy(project, token);
+			project[strlen(token)] = '\0';
+			char *proj_path = (char *) malloc(strlen(token) + 22);
+			snprintf(proj_path, strlen(token) + 22, ".server_directory/%s", token);
+			char *to_send = (char *) malloc(2);
+			if (check_dir(proj_path) == -1) {
+				fprintf(stderr, "ERROR: Project \"%s\" does not exist on server.\n", project);
+				snprintf(to_send, 2, "b");
+				sent = send(client_socket, to_send, 2, 0);
+				pthread_mutex_unlock(&cntx->lock);
+				pthread_exit(NULL);
+			}
+			/* Open .Manifest to get version number and its input */
+			char mani_path[strlen(proj_path) + 11];
+			snprintf(mani_path, strlen(proj_path) + 11, "%s/.Manifest", proj_path);
+			int fd_mani = open(mani_path, O_RDONLY);
+			int mani_size = get_file_size(fd_mani);
+			if (fd_mani < 0 || mani_size < 0) {
+				snprintf(to_send, 2, "x");
+				sent = send(client_socket, to_send, 2, 0);
+				fprintf(stderr, "ERROR: Cannot open .Manifest for project \"%s\".\n", project);
+				free(to_send);
+				close(fd_mani);
+				pthread_mutex_unlock(&cntx->lock);
+				pthread_exit(NULL);
+			}
+			snprintf(to_send, 2, "g");
+			sent = send(client_socket, to_send, 2, 0);
+			char mani_input[mani_size + 1];
+			read(fd_mani, mani_input, mani_size);
+			mani_input[mani_size] = '\0';
+		
+			char vers[mani_size];
+			lseek(fd_mani, 0, 0);
+			read(fd_mani, vers, 256);
+			char *vers_token = strtok(vers, "\n");
+			int version = atoi(vers_token);
+		
+			char vers_path[strlen(proj_path) + 7 + sizeof(version)];
+			snprintf(vers_path, strlen(proj_path) + 7 + sizeof(version), "%s/version%d", proj_path, version);
+			
+			char *recving = (char *) malloc(sizeof(int) + 1);
+			received = recv(client_socket, recving, sizeof(int), 0);
+			int path_size = atoi(recving);
+		
+			free(recving);
+			recving = (char *) malloc(path_size + 1);
+			received = recv(client_socket, recving, path_size, 0);
+			while (received < path_size) {
+				int br = recv(client_socket, recving + received, path_size, 0);
+				received += br;
+			}
+			recving[received] = '\0';
+			int copy_check = dir_copy(vers_path, recving, 1);
+			if (copy_check != 0) {
+				free(to_send);
+				to_send = (char *) malloc(2);
+				snprintf(to_send, 2, "x");
+				close(fd_mani);
+				free(recving);
+				fprintf(stderr, "ERROR: Could not copy over project \"%s\" to client.\n", token);
+				pthread_mutex_unlock(&cntx->lock);
+				pthread_exit(NULL);
+			}
+			free(to_send);
+			/* Sending .Manifest */
+			int sending_size = sizeof(int);
+			to_send = (char *) malloc(sending_size);	
+			snprintf(to_send, sending_size, "%d", mani_size);
+			sent = send(client_socket, to_send, sending_size, 0);
+			free(to_send);
+			to_send = (char *) malloc(mani_size + 1);
+			strcpy(to_send, mani_input);
+			to_send[mani_size] = '\0';
+			sent = send(client_socket, to_send, mani_size, 0);
+			printf("sent: %s\n", to_send);
+			while (sent < mani_size) {
+				int bs = send(client_socket, to_send + sent, mani_size, 0);
+				sent += bs;
+			}
+			close(fd_mani);
+			free(recving);
+			recving = (char *) malloc(2);
+			received = recv(client_socket, recving, 2, 0);
+			if (recving[0] == 'g') {
+				printf("Sent project \"%s\" successfully to client!\n", token);
+			} else {
+				fprintf(stderr, "ERROR: Client could not set up local .Manifest for project \"%s\".", token);
+			}
+			free(recving);
+			free(to_send);
 		} else if (token[0] == 'x') {
 			fprintf(stderr, "ERROR: Mishap on client's end.\n");
 		}
