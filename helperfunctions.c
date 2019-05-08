@@ -747,7 +747,7 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 					write(fd_upd, "\t", 1);
 					write(fd_upd, path, strlen(path));
 					write(fd_upd, "\t", 1);
-					write(fd_upd, hashed, strlen(mani_token));
+					write(fd_upd, mani_token, strlen(mani_token));
 					write(fd_upd, "\n", 1);
 					printf("%d\t%s\t%s\n", version, path, mani_token);	
 				}
@@ -808,17 +808,15 @@ int rollback(char *path, int version) {
 	return 0;
 }
 
-int create_dirs(char *file_path, char *parent) {
-	int count = 0;
+int create_dirs(char *file_path, char *parent, int flag) {	
 	char *path_token;
 	char *prev_token = (char *) malloc(strlen(parent) + 2);
 	snprintf(prev_token, strlen(parent) + 2, "%s/", parent);
-	char *prev
 	char *save_token = (char *) malloc(strlen(parent) + 2);
 	int j = 0, k = 0;
 	int last_sep = 0;
 	int token_len = 0;
-	int len = strlen(file_input);
+	int len = strlen(file_path);
 	int count = 0;
 	for (j = 0; j < len; ++j) {	
 		if (file_path[j] != '/') {
@@ -827,13 +825,13 @@ int create_dirs(char *file_path, char *parent) {
 		} else {
 			path_token = (char *) malloc(token_len + 1);
 			for (k = 0; k < token_len; ++k) {
-				path_token[k] = path_input[last_sep + k];
+				path_token[k] = file_path[last_sep + k];
 			}
 			path_token[token_len] = '\0';
 			last_sep += token_len + 1;
 			token_len = 0;
 			++count;
-			if (count == 1) {
+			if (count <= 1 + flag) {
 				free(path_token);
 				continue;
 			}

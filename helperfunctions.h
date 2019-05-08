@@ -14,3 +14,4 @@ int push_check(char *project, char *comm_input);
 int dir_copy(char *src, char *dest, int flag);
 int update(int fd_upd, char *client_mani, char *server_mani, int client_version, int server_version);
 int rollback(char *path, int version);
+int create_dirs(char *file_path, char *parent, int flag);

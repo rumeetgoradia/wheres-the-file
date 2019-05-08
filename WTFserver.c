@@ -656,6 +656,7 @@ void *thread_handler(void *args) {
 							int bytes_recved = recv(client_socket, recving + received, file_size, 0);
 							received += bytes_recved;
 						}
+						create_dirs(new_file_path, new_vers_path, 2);
 						int fd_new_file;
 						if (modify_check) {
 							fd_new_file = open(new_file_path, O_WRONLY | O_TRUNC);

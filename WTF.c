@@ -947,11 +947,10 @@ int main (int argc, char **argv) {
 			char *upd_token;
 			int j = 0, k = 0;
 			int last_sep = 0;
-			int token_len = 0;
+			int token_len = 0;	
 			int len = strlen(upd_input);
 			int delete_check = 0, modify_check = 0;
 			char *file_path = NULL;
-			printf("about to enter for loop\n");
 			for (j = 0; j < len; ++j) {	
 				if (upd_input[j] != '\t' && upd_input[j] != '\n') {
 					++token_len;
@@ -965,7 +964,8 @@ int main (int argc, char **argv) {
 					last_sep += token_len + 1;
 					token_len = 0;
 					++count;
-				}	
+				}
+
 				if (count % 4 == 1) {
 					if (upd_token[0] == 'D') {
 						delete_check = 1;
@@ -976,6 +976,7 @@ int main (int argc, char **argv) {
 				} else if (count % 4 == 2) {
 					free(upd_token);	
 				} else if (count % 4 == 3) {
+		
 					if (delete_check == 1) {
 						remove(upd_token);
 					} else {
@@ -1004,6 +1005,7 @@ int main (int argc, char **argv) {
 							received += brecv;
 						} 
 						recving[received] = '\0';
+						create_dirs(upd_token, argv[2], 0);
 						int fd_file;
 						if (modify_check) {
 							fd_file = open(upd_token, O_WRONLY | O_TRUNC);
