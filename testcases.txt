@@ -15,33 +15,37 @@ __________________________________________________
 
 INPUT: ./WTf create compsci
 
-CLIENT OUTPUT: 	Welcome! Attempting to connect to server. 
-		Connection Successful!
-		Local Repository successfully created. 
+CLIENT OUTPUT: 	Project "compsci" initialized successfully! 
 
-SERVER OUTPUT: Project: compsci, successfully created.
+SERVER OUTPUT: Creation of project "args" successful. 
 
 ________________________________________________________
 
 
 INPUT: ./WTF add compsci ./rutgers.txt
 
-CLIENT OUTPUT: Project compsci added successfully!
+CLIENT OUTPUT: Addition of "compsci/ ./rutgers.txt" successful.
 
 ________________________________________________________
 
 
 INPUT: ./WTF add compsci ./cs.txt
 
-CLIENT OUTPUT: Project compsci added successfully!
+CLIENT OUTPUT: Addition of "compsci/ ./cs.txt" successful.
 
 ___________________________________________________________
-
 
 INPUT: ./WTF remove compsci ./cs.txt
 
 CLIENT OUTPUT: Project compsci removed on server successfully!
 ______________________________________________________________
+
+Input: ./WTF remove args 
+
+Client OUTPUT: Project "arg" does not exist.
+
+SERVER OUTPUT: Project "arg" does not exist on server. 
+_______________________________________________________________
 
 INPUT: ./WTF checkout compsci 
 
@@ -50,25 +54,42 @@ CLIENT OUTPUT:	Welcome! Attempting to connect to server.
 		Project already exists
 
 SERVER OUTPUT: 	Checkout successful!
+_______________________________________________________________
 
-________________________________________________________________
+INPUT: ./WTF commit compsci
 
+CLIENT OUTPUT: Commit successful!
+
+SERVER OUTPUT: Commit successful.
+_________________________________________________________________
+
+INPUT: ./WTF push compsci
+
+CLIENT OUTPUT: Push successful!
+
+SERVER OUTPUT: Push successful. 
+_________________________________________________________________
 
 INPUT: ./WTF destroy compsci
 
-CLIENT OUTPUT:	 
-		Connection Successful!
-		Project compsci successfully destroyed
+CLIENT OUTPUT:	 Project "args" deleted on server successfully!
 
-SERVER OUTPUT: 	Destroyed successfully!
+SERVER OUTPUT: 	Project "args" deleted from server. 
 
 _________________________________________________________________
-INPUT: ./client currentversion compsci 
+INPUT: ./WTF currentversion compsci 
 
-CLIENT OUTPUT:	 
-		Connection Successful!
-		Version #4
-		Version #2	compsci/cs.txt
-		Version #1	compsci/rutgers.txt
+CLIENT OUTPUT:	compsci (Version 2)
+		
+		Version #0	compsci/cs.txt
+		Version #0	compsci/rutgers.txt
 
-SERVER OUTPUT: 	Successfully sent!
+SERVER OUTPUT: 	Sent .Manifest file for "compsci" project to client.
+_____________________________________________________________________
+
+INPUT: ./WTF checkout compsci
+
+CLIENT OUTPUT: ERROR: Project "compsci" already exists on client side.
+
+SERVER OUTPUT: Mishap on client's end. 
+_______________________________________________________________________
