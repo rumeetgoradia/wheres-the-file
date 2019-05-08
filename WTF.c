@@ -965,8 +965,7 @@ int main (int argc, char **argv) {
 					last_sep += token_len + 1;
 					token_len = 0;
 					++count;
-				}
-				printf("%d\n", count);
+				}	
 				if (count % 4 == 1) {
 					if (upd_token[0] == 'D') {
 						delete_check = 1;
@@ -981,10 +980,10 @@ int main (int argc, char **argv) {
 						remove(upd_token);
 					} else {
 						free(recving);
-						recving = (char *) malloc(sizeof(int) + 1);
+						recving = (char *) malloc(sizeof(int));
 						received = recv(client_socket, recving, sizeof(int), 0);
-						recving[received] = '\0';
-						printf("recved %d bytes: %s\n", received, recving);
+//						recving[received] = '\0';
+
 						/* For anything that was M code or A code, get file content's from server */
 						if (recving[0] == 'x') {
 							fprintf(stderr, "ERROR: Server could not send contents of \"%s\".\n", upd_token);
@@ -993,27 +992,28 @@ int main (int argc, char **argv) {
 							close(fd_upd);
 							return EXIT_FAILURE;
 						}
-						printf("got past check\n");
+
 						int file_size = atoi(recving);
-						printf("size: %d\n", file_size);
+
 						free(recving);
+
 						recving = (char *) malloc(file_size + 1);
-						received = recv(client_socket, recving, file_size, 0);
-						/* while (received < file_size) {
+						received = recv(client_socket, recving, file_size,0);
+						while (received < file_size) {
 							int brecv = recv(client_socket, recving + received, file_size, 0);
 							received += brecv;
-						} */
+						} 
 						recving[received] = '\0';
-						printf("recved %d bytes: %s\n", received, recving);
-						int fd_file = open(upd_token, O_WRONLY | O_TRUNC);
-						if (!modify_check) {
-							close(fd_file);
+						int fd_file;
+						if (modify_check) {
+							fd_file = open(upd_token, O_WRONLY | O_TRUNC);
+						} else {
 							fd_file = open(upd_token, O_WRONLY | O_CREAT, 0744);
 						}
 						if (fd_file < 0) {
 							free(recving);
-							snprintf(to_send, 2, "x");
-							sent = send(client_socket, to_send, 2, 0);
+							snprintf(to_send, 1, "x");
+							sent = send(client_socket, to_send, 1, 0);
 							free(to_send);
 							fprintf(stderr, "ERROR: Failed to open \"%s\" file in project \"%s\".\n", upd_token, argv[2]);
 							free(upd_token);
@@ -1021,15 +1021,15 @@ int main (int argc, char **argv) {
 							close(fd_upd);
 						}
 						write(fd_file, recving, strlen(recving));
+						close(fd_file);
 						snprintf(to_send, 2, "g");
-						sent = send(client_socket, to_send, 2, 0); 
+						sent = send(client_socket, to_send, 1, 0); 
 						free(upd_token);
 					}
 				} else {
 					free(upd_token);
 				}
 			}
-			printf("Got this done\n");
 			close(fd_upd);
 			remove(path_upd);
 			free(recving);
@@ -1058,7 +1058,7 @@ int main (int argc, char **argv) {
 			if (fd_mani < 0) {
 				free(recving);
 				snprintf(to_send, 2, "x");
-				sent = send(client_socket, to_send, 2, 0);
+				sent = send(client_socket, to_send, 1, 0);
 				free(to_send);
 				fprintf(stderr, "ERROR: Unable to open .Manifest for project \"%s\".\n", argv[2]);
 				close(fd_mani);
@@ -1066,7 +1066,7 @@ int main (int argc, char **argv) {
 			write(fd_mani, recving, mani_size);
 			close(fd_mani);
 			snprintf(to_send, 2, "g");
-			sent = send(client_socket, to_send, 2, 0);
+			sent = send(client_socket, to_send, 1, 0);	
 			free(recving);
 			free(to_send);
 			printf("Upgrade successful!\n");

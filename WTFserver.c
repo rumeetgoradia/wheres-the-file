@@ -926,16 +926,20 @@ void *thread_handler(void *args) {
 						to_send = (char *) malloc(sizeof(size) + 1);
 						snprintf(to_send, sizeof(size) + 1, "%d", size);
 						to_send[sizeof(size)] = '\0';
-						sent = send(client_socket, to_send, sizeof(size) + 1, 0);
+						/* Sending size */
+						sent = send(client_socket, to_send, sizeof(size),0);
 						free(to_send);
 						to_send = (char *) malloc(size + 1);
 						int bytes_read = read(fd, to_send, size);
 						to_send[bytes_read] = '\0';
+						
 						sent = send(client_socket, to_send, size, 0);
-						while (sent < size) {
+					
+/*						while (sent < size) {
 							int bs = send(client_socket, to_send + sent, size, 0);
 							sent += bs;
-						}
+						} */
+
 						close(fd);
 						free(recving);
 						recving = (char *) malloc(2);
@@ -956,6 +960,7 @@ void *thread_handler(void *args) {
 			free(to_send);
 			to_send = (char *) malloc(sizeof(int));
 			snprintf(to_send, sizeof(int), "%d", mani_size);
+			sent = send(client_socket, to_send, sizeof(int), 0);
 			free(to_send);
 			to_send = (char *) malloc(strlen(mani_input) + 1);
 			strcpy(to_send, mani_input);
@@ -965,7 +970,7 @@ void *thread_handler(void *args) {
 				int bs = send(client_socket, to_send + sent, mani_size, 0);
 				sent += bs;
 			}
-			received = recv(client_socket, recving, 1, 0);
+			received = recv(client_socket, recving, 2, 0);	
 			if (recving[0] == 'g') {
 				printf("Upgrade successful!\n");
 			} else {

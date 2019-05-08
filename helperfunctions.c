@@ -541,7 +541,7 @@ int update_check(char *mani, int client_version, int server_version, char *hash,
 					} else {
 						return 1;
 					}
-				} else if (strcmp(hash, mani_token) == 0 && file_version == version && client_version == server_version) {
+				} else if (strcmp(hash, mani_token) == 0 && file_version != version && client_version != server_version) {
 					free(mani_token);
 					return 2;
 				} else if (strcmp(hash, mani_token) != 0 && client_version == server_version) {
@@ -573,7 +573,7 @@ int update_check(char *mani, int client_version, int server_version, char *hash,
 			} else {
 				return 1;
 			}
-		} else if (strcmp(hash, mani_token) == 0 && file_version == version && client_version == server_version) {
+		} else if (strcmp(hash, mani_token) == 0 && file_version != version && client_version != server_version) {
 			free(mani_token);
 			return 2;
 		} else if (strcmp(hash, mani_token) != 0 && client_version == server_version) {
@@ -624,7 +624,6 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 
 		/* First token will always be the .Manifest version number, which is already given in args */
 		if (count == 0) {
-			free(mani_token);	
 			continue;
 		}
 		if (count % 3 == 1) {
@@ -656,14 +655,12 @@ int update(int fd_upd, char *client_mani, char *server_mani, int client_version,
 		} else if (count != 0) {
 			int upd_check = 0;
 			/* Check if file was already deleted in server */
-			printf("got before update check\n");
 			if (strcmp(mani_token, dashes) == 0) {
 				upd_check = update_check(server_mani, client_version, server_version, dashes, version, path);
 			} else {
 				/* Or just do a regular check */
 				upd_check = update_check(server_mani, client_version, server_version, hashed, version, path);
 			}
-			printf("got after it\n");
 			/* If conflict, stop printing anything else and report conflict */
 			if (upd_check == -1) {
 				print = 0;
