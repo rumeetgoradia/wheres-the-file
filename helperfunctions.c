@@ -807,3 +807,48 @@ int rollback(char *path, int version) {
 	closedir(dir);
 	return 0;
 }
+
+int create_dirs(char *file_path, char *parent) {
+	int count = 0;
+	char *path_token;
+	char *prev_token = (char *) malloc(strlen(parent) + 2);
+	snprintf(prev_token, strlen(parent) + 2, "%s/", parent);
+	char *prev
+	char *save_token = (char *) malloc(strlen(parent) + 2);
+	int j = 0, k = 0;
+	int last_sep = 0;
+	int token_len = 0;
+	int len = strlen(file_input);
+	int count = 0;
+	for (j = 0; j < len; ++j) {	
+		if (file_path[j] != '/') {
+			++token_len;
+			continue;
+		} else {
+			path_token = (char *) malloc(token_len + 1);
+			for (k = 0; k < token_len; ++k) {
+				path_token[k] = path_input[last_sep + k];
+			}
+			path_token[token_len] = '\0';
+			last_sep += token_len + 1;
+			token_len = 0;
+			++count;
+			if (count == 1) {
+				free(path_token);
+				continue;
+			}
+		}
+		free(save_token);
+		save_token = (char *) malloc(strlen(prev_token) + 1);
+		strcpy(save_token, prev_token);
+		save_token[strlen(prev_token)] = '\0';
+		free(prev_token);
+		prev_token = (char *) malloc(strlen(save_token) + strlen(path_token) + 2);
+		snprintf(prev_token, strlen(save_token) + strlen(path_token) + 2, "%s%s/", save_token, path_token);
+		if (check_dir(prev_token) == -1) {
+			mkdir(prev_token, 0744);
+		}
+		free(path_token);
+	}
+	return 0;
+}
