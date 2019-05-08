@@ -10,34 +10,33 @@ int main(int argc, char**argv){
     if(child != 0){
         wait(NULL);
     } else {
-      execlp("./wtfclient", "configure", "cp.cs.rutgers.edu", "8080");
+      execlp("./WTFserver", "7000");
       sleep(5);
-      execlp("./wtfclient", "create", "Example1");
+      execlp("./WTF", "configure", "lisp.cs.rutgers.edu", "7000");
       sleep(5);
-      execlp("./wtfclient", "add", "File1");
+      execlp("./WTF", "create", "File1");
       sleep(5);
-      execlp("./wtfclient", "add", "File2");
+      execlp("./WTF", "add", "File1","cs.txt");
       sleep(5);
-      execlp("./wtfclient", "commit", "Example1");
+      execlp("./WTF", "add", "File1","adru.txt");
       sleep(5);
-      execlp("./wtfclient", "push", "Example1");
+      execlp("./WTF", "add", "File1", "File1/adru.txt");
       sleep(5);
-      execlp("./wtfclient", "remove", "File2");
+      execlp("./WTF", "commit", "File1");
       sleep(5);
-      execlp("./wtfclient", "update", "Example1");
+      execlp("./WTF", "push", "File1");
       sleep(5);
-      execlp("./wtfclient", "upgrade", "Example1");
+      execlp("./WTF", "remove", "File1", "adru.txt");
       sleep(5);
-      execlp("./wtfclient", "history", "Example1");
+      execlp("./WTF", "update", "File1");
       sleep(5);
-      execlp("./wtfclient", "currentversion", "Example1");
+      execlp("./WTF", "upgrade", "File1");
       sleep(5);
-      execlp("./wtfclient", "rollback", "Example1", "1");
+      execlp("./WTF", "currentversion", "File1");
       sleep(5);
-      execlp("./wtfclient", "destroy", "Example1");
+      execlp("./WTF", "rollback", "File1", "1");
+      sleep(5);
+      execlp("./WTF", "history", "File1");
       sleep(5);
     }
-
-return 0;
-}
 
